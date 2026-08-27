@@ -18,7 +18,7 @@ npm run dev:mock     # prøv appen med jukse-data, uten Supabase
 For ekte, delt liste:
 
 1. Lag et gratis prosjekt på [supabase.com](https://supabase.com).
-2. SQL Editor → kjør `supabase/01_schema.sql`, deretter `supabase/02_seed_meals.sql`.
+2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 

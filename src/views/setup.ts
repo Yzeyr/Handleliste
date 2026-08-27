@@ -73,7 +73,7 @@ export function createSetupView(onSaved: () => void): HTMLElement {
     el('h2', { text: 'Koble til databasen' }),
     el('ol', { class: 'setup-steps' }, [
       el('li', { text: 'Lag et gratis prosjekt på supabase.com.' }),
-      el('li', { text: 'Kjør 01_schema.sql og 02_seed_meals.sql i SQL Editor.' }),
+      el('li', { text: 'Kjør supabase/setup.sql i SQL Editor.' }),
       el('li', { text: 'Hent Project URL og anon key under Project Settings → API.' }),
     ]),
     isConfigFixed()
