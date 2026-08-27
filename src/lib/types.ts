@@ -1,0 +1,69 @@
+/** Butikk-seksjoner. Må matche CHECK-constrainten i 01_schema.sql. */
+export const CATEGORIES = [
+  'grønt',
+  'kjøtt',
+  'fisk',
+  'meieri',
+  'tørrvarer',
+  'frys',
+  'bakeri',
+  'annet',
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
+
+export function isCategory(value: string): value is Category {
+  return (CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * Én mengde på én handlelinje. En linje har normalt nøyaktig én av disse.
+ * Flere betyr at mengdene ikke lot seg regne sammen (ulike dimensjoner),
+ * og de vises da etter hverandre på samme linje: "3 dl + 2 boks".
+ */
+export interface Quantity {
+  amount: number;
+  unit: string;
+}
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  normalized_name: string;
+  quantities: Quantity[];
+  category: Category;
+  checked: boolean;
+  source_meals: string[];
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealIngredient {
+  id: string;
+  meal_id: string;
+  name: string;
+  normalized_name: string;
+  /** null = "etter smak" — havner på lista uten mengde. */
+  amount: number | null;
+  unit: string | null;
+  category: Category;
+  sort_order: number;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  emoji: string | null;
+  description: string | null;
+  servings: number;
+  steps: string[];
+  tags: string[];
+  ingredients: MealIngredient[];
+}
+
+export interface WeekPlanItem {
+  id: string;
+  meal_id: string;
+  added_to_list: boolean;
+}

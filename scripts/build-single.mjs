@@ -1,0 +1,56 @@
+/**
+ * Bygger appen til én selvstendig HTML-fil.
+ *
+ * Vite lager index.html + én js + én css; her limes de to inn i HTML-en slik
+ * at fila kan lastes opp hvor som helst — GitHub Pages, en mappe, en
+ * e-postvedlegg — uten at noe annet må følge med. Ingen ekstra avhengighet:
+ * bygget er allerede én chunk hver, så det er ren tekstsammenslåing.
+ */
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+const distDir = join(projectRoot, 'dist');
+// docs/ fordi GitHub Pages kan servere den mappa direkte fra main-branchen,
+// uten byggesteg i skya. index.html her er den ferdige appen; index.html i
+// rota er Vite sin dev-mal.
+const outDir = join(projectRoot, 'docs');
+const outFile = join(outDir, 'index.html');
+
+rmSync(distDir, { recursive: true, force: true });
+execFileSync('npx', ['vite', 'build'], { cwd: projectRoot, stdio: 'inherit' });
+
+const assets = readdirSync(join(distDir, 'assets'));
+const jsFiles = assets.filter((name) => name.endsWith('.js'));
+const cssFiles = assets.filter((name) => name.endsWith('.css'));
+if (jsFiles.length !== 1 || cssFiles.length !== 1) {
+  throw new Error(`Forventet én js og én css, fant ${jsFiles.length} og ${cssFiles.length}`);
+}
+
+const js = readFileSync(join(distDir, 'assets', jsFiles[0]), 'utf8');
+const css = readFileSync(join(distDir, 'assets', cssFiles[0]), 'utf8');
+
+// </script> inne i kildekoden ville lukket taggen vi limer den inn i.
+const safeJs = js.replaceAll('</script', '<\\/script');
+
+// Erstatningene MÅ være funksjoner, ikke strenger: String.replace tolker $&,
+// $` og $' i en streng-erstatning, og Supabase-bundelen inneholder `$&`.
+// Med streng-erstatning ble den sekvensen byttet ut med treffet, og bundelen
+// kom ut syntaktisk ødelagt.
+const styleTag = `<style>\n${css}\n</style>`;
+const scriptTag = `<script type="module">\n${safeJs}\n</script>\n</body>`;
+
+const html = readFileSync(join(distDir, 'index.html'), 'utf8')
+  .replace(/<script type="module"[^>]*><\/script>/, () => '')
+  .replace(/<link rel="stylesheet"[^>]*>/, () => styleTag)
+  .replace('</body>', () => scriptTag);
+
+if (html.includes('assets/')) throw new Error('Noe peker fortsatt på en ekstern fil');
+if (!html.includes(safeJs)) throw new Error('JS-en ble endret under innliming');
+if (!html.includes(css)) throw new Error('CSS-en ble endret under innliming');
+
+mkdirSync(outDir, { recursive: true });
+writeFileSync(outFile, html);
+console.log(`\ndocs/index.html — ${(Buffer.byteLength(html) / 1024).toFixed(0)} kB, én fil, ingen eksterne kall`);
