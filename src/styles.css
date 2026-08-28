@@ -103,6 +103,33 @@ body {
 
 .card-file { padding: 10px; }
 
+.crop-wrap { display: flex; flex-direction: column; gap: 8px; }
+/* Uten dette vinner display:flex over nettleserens [hidden], og skjemaet blir
+   stående etter lagring. */
+.crop-wrap[hidden] { display: none; }
+
+/* Området er nøyaktig bildet, ikke en boks rundt det: da er fingerens
+   posisjon i området den samme som posisjonen i bildet, uten omregning. */
+.crop-area {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.crop-img { display: block; width: 100%; height: auto; }
+
+.crop-box {
+  position: absolute;
+  display: none;
+  border: 2px solid var(--accent);
+  /* Resten av bildet dempes, så utsnittet leses uten å telle kanter. */
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 45%);
+  pointer-events: none;
+}
+
 /* Kassavisningen. Utenfor appens mørke ramme, fordi en skanner leser
    kontrast — en lys kode på mørk bakgrunn er nettopp det som ikke fanges. */
 .card-fullscreen {
@@ -118,9 +145,12 @@ body {
   background: #fff;
 }
 
+/* Så stor som plassen tillater. En kode som er beskåret til bare koden skal
+   fylle skjermen, ikke sitte i en boks med luft rundt. */
 .card-big {
-  max-width: 100%;
-  max-height: 60vh;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   object-fit: contain;
 }
 

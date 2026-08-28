@@ -60,21 +60,66 @@ export function saveCards(cards: readonly Card[]): void {
   }
 }
 
+/** Utsnitt av kildebildet, som andeler 0-1 — uavhengig av visningsstørrelse. */
+export interface Crop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const FULL_IMAGE: Crop = { x: 0, y: 0, w: 1, h: 1 };
+
+/**
+ * Gjør to punkter fra en fingerdrag om til et utsnitt.
+ *
+ * Andeler, ikke piksler: dragningen skjer på et bilde som er skalert til
+ * skjermbredden, mens beskjæringen skal skje i kildebildets egen oppløsning.
+ * Et for lite utsnitt er nesten alltid et feiltrykk, ikke en hensikt — da er
+ * hele bildet et bedre svar enn en tom firkant.
+ */
+export const MIN_CROP = 0.05;
+
+export function cropFromDrag(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  width: number,
+  height: number,
+): Crop {
+  if (width <= 0 || height <= 0) return FULL_IMAGE;
+  const clamp = (value: number): number => Math.min(1, Math.max(0, value));
+  const x1 = clamp(Math.min(a.x, b.x) / width);
+  const x2 = clamp(Math.max(a.x, b.x) / width);
+  const y1 = clamp(Math.min(a.y, b.y) / height);
+  const y2 = clamp(Math.max(a.y, b.y) / height);
+  const crop = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  return crop.w < MIN_CROP || crop.h < MIN_CROP ? FULL_IMAGE : crop;
+}
+
 /**
  * Skalerer ned til noe en kasse fortsatt leser, men som får plass i
  * localStorage. PNG først: en strekkode er skarpe kanter, og JPEG-artefakter
  * treffer nettopp dem. Blir den for stor, er JPEG bedre enn ingen kort.
+ *
+ * Beskjæringen skjer før nedskaleringen, så MAX_IMAGE_SIDE gjelder utsnittet.
+ * En QR-kode midt i et skjermbilde beholder dermed oppløsningen sin i stedet
+ * for å bli et lite felt i et nedskalert helbilde.
  */
-export async function shrinkImage(file: File): Promise<string> {
+export async function shrinkImage(file: File, crop: Crop = FULL_IMAGE): Promise<string> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height));
+  const sx = Math.round(crop.x * bitmap.width);
+  const sy = Math.round(crop.y * bitmap.height);
+  const sw = Math.max(1, Math.round(crop.w * bitmap.width));
+  const sh = Math.max(1, Math.round(crop.h * bitmap.height));
+
+  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(sw, sh));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
+  canvas.width = Math.round(sw * scale);
+  canvas.height = Math.round(sh * scale);
 
   const context = canvas.getContext('2d');
   if (context === null) throw new Error('Klarte ikke å lese bildet');
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   bitmap.close();
 
   const png = canvas.toDataURL('image/png');

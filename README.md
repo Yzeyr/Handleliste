@@ -437,11 +437,22 @@ forventer er ikke noe vi kan slå fast, og en kode som er gjettet feil oppdager
 du først i kassa. Et skjermbilde fra kjedens egen app er nøyaktig det som
 virket sist.
 
+**Beskjæring hører til her, ikke i Bilder-appen.** Et skjermbilde fra kjedens
+app har koden midt i mye annet; vist tilpasset skjermen blir selve koden liten,
+og det er den skanneren skal lese. Dra en firkant rundt koden før du lagrer, så
+gjelder oppløsningen utsnittet i stedet for helbildet. Et for lite utsnitt er
+nesten alltid et feiltrykk, så under 5 % faller den tilbake til hele bildet.
+
 Bildet skaleres til maks 1400 px og lagres som PNG når det er lite nok — en
 strekkode er skarpe kanter, og JPEG-artefakter treffer nettopp dem. Er PNG-en
 for stor, faller den til JPEG i tre trinn heller enn å nekte. Visningen legger
 seg over hele skjermen på hvit bakgrunn, utenfor appens mørke ramme, fordi en
 skanner leser kontrast.
+
+Virker for QR like godt som for strekkode — appen lagrer et bilde og bryr seg
+ikke om hva slags kode det er. Forutsetningen er at koden er **den samme hver
+gang**. Bruker en kjede en engangskode som endrer seg, hjelper ingen lagret
+kopi, og da er kjedens egen app riktig verktøy.
 
 ### Faste varer
 
