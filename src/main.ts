@@ -70,6 +70,13 @@ if (root === null) throw new Error('Fant ikke #app');
 // En delingslenke fra den andre telefonen setter opp appen før noe annet.
 applyShareLink();
 
+// Er appen allerede åpen på samme adresse, bytter et trykk på delingslenka
+// bare fragmentet — nettleseren laster ikke siden på nytt, og oppsettet ville
+// blitt liggende ubrukt. Da starter vi på nytt selv.
+window.addEventListener('hashchange', () => {
+  if (applyShareLink()) window.location.reload();
+});
+
 // Service worker: appen skal laste uten nett, og si fra når den er oppdatert.
 // Registreres etter første tegning, så den ikke konkurrerer om oppstarten.
 window.addEventListener('load', () => {

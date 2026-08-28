@@ -10,12 +10,25 @@
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
-import { deviceName } from './config.ts';
+import { deviceName, loadConfig, saveConfig } from './config.ts';
 import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 import type { ChangeEvent } from './changes.ts';
 
+/**
+ * Demo-utgaven fyller inn dummy-nøkler ved oppstart, så `npm run dev:mock`
+ * åpner en app som virker. `?oppsett=1` slår det av, for da er det nettopp
+ * oppsettsskjermen som skal prøves.
+ */
+if (!new URLSearchParams(window.location.search).has('oppsett') && loadConfig() === null) {
+  saveConfig({ url: 'https://demo.supabase.co', anonKey: 'demo-nokkel' });
+}
+
+/**
+ * Speiler db.ts. Uten dette lot mock-laget appen fortsette uten oppsett i det
+ * hele tatt, og skjulte nettopp den feilen delingslenka kan gi.
+ */
 export function isConfigured(): boolean {
-  return true;
+  return loadConfig() !== null;
 }
 
 /**
@@ -147,15 +160,59 @@ let MEALS: Meal[] = [
   },
 ];
 
+/**
+ * «Serveren» lagres i localStorage under sin egen nøkkel, ikke bare i minnet.
+ *
+ * To grunner: npm run dev:mock mister ellers alt ved hver omlasting, og —
+ * viktigere — en test kan nå tømme appens egne nøkler for å simulere en fersk
+ * telefon mens «databasen» står igjen. Uten det er delingslenka og første
+ * henting umulig å teste.
+ */
+const SERVER_KEY = 'handleliste.mockserver';
+
+interface ServerState {
+  items: ShoppingItem[];
+  week: WeekPlanItem[];
+  meals: Meal[] | null;
+  aliases: { alias: string; canonical: string }[];
+}
+
+function readServer(): ServerState | null {
+  try {
+    const raw = window.localStorage.getItem(SERVER_KEY);
+    return raw === null ? null : (JSON.parse(raw) as ServerState);
+  } catch {
+    return null;
+  }
+}
+
+function writeServer(): void {
+  try {
+    window.localStorage.setItem(SERVER_KEY, JSON.stringify({ items, week, meals: MEALS, aliases }));
+  } catch {
+    /* full lagring: da oppfører den seg som før, bare i minnet */
+  }
+}
+
 let items: ShoppingItem[] = [];
 let week: WeekPlanItem[] = [];
+let aliases: { alias: string; canonical: string }[] = [];
 const listeners = new Set<(event: ChangeEvent | null) => void>();
 
 function notify(event: ChangeEvent | null = null): void {
+  writeServer();
   for (const listener of listeners) listener(event);
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+const lagret = readServer();
+if (lagret !== null) {
+  items = lagret.items ?? [];
+  week = lagret.week ?? [];
+  if (lagret.meals !== null && lagret.meals !== undefined) MEALS = lagret.meals;
+  aliases = lagret.aliases ?? [];
+}
 
 export async function fetchMeals(): Promise<Meal[]> {
   krevNett();
@@ -180,8 +237,6 @@ export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
   krevNett();
   return clone(week);
 }
-
-let aliases: { alias: string; canonical: string }[] = [];
 
 function applyPending(pending: readonly PendingItem[]): void {
   // Samme sammenlign-og-bytt-løkke som db.ts, så en test kan bumpe versjonen

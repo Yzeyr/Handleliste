@@ -1,3 +1,5 @@
+import { decodeShareLink, encodeShareConfig, SHARE_PARAM } from './shareLink.ts';
+
 /**
  * Hvor Supabase-nøklene kommer fra.
  *
@@ -9,6 +11,8 @@
  * Å lagre anon-nøkkelen i localStorage er ikke dårligere enn å bake den inn i
  * bundelen — den er offentlig uansett, se sikkerhetsavsnittet i README.
  */
+
+export { decodeShareLink } from './shareLink.ts';
 
 const STORAGE_KEY = 'handleliste.supabase';
 
@@ -67,21 +71,10 @@ export function clearConfig(): void {
 // nettverkstrafikken til appen, se sikkerhetsavsnittet i README.
 // ---------------------------------------------------------------------------
 
-const HASH_PARAM = 'k';
-
-function toBase64Url(value: string): string {
-  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(value: string): string {
-  const padded = value.replace(/-/g, '+').replace(/_/g, '/');
-  return atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
-}
 
 export function buildShareLink(config: SupabaseConfig): string {
-  const payload = toBase64Url(JSON.stringify([config.url, config.anonKey]));
   const { origin, pathname } = window.location;
-  return `${origin}${pathname}#${HASH_PARAM}=${payload}`;
+  return `${origin}${pathname}#${SHARE_PARAM}=${encodeShareConfig(config)}`;
 }
 
 /**
@@ -90,21 +83,17 @@ export function buildShareLink(config: SupabaseConfig): string {
  * Returnerer om noe faktisk ble tatt i bruk.
  */
 export function applyShareLink(): boolean {
-  const match = new RegExp(`[#&]${HASH_PARAM}=([A-Za-z0-9_-]+)`).exec(window.location.hash);
-  if (match === null || match[1] === undefined) return false;
+  return applyShareText(window.location.hash, true);
+}
 
-  try {
-    const parsed: unknown = JSON.parse(fromBase64Url(match[1]));
-    if (!Array.isArray(parsed) || parsed.length !== 2) return false;
-    const [url, anonKey] = parsed;
-    if (typeof url !== 'string' || typeof anonKey !== 'string') return false;
-    if (!/^https:\/\/[^\s/]+/.test(url) || anonKey === '') return false;
-    saveConfig({ url, anonKey });
-  } catch {
-    return false;
+/** Samme, men fra tekst limt inn for hånd på oppsettsskjermen. */
+export function applyShareText(text: string, stripHash = false): boolean {
+  const config = decodeShareLink(text);
+  if (config === null) return false;
+  saveConfig(config);
+  if (stripHash) {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }
-
-  window.history.replaceState(null, '', window.location.pathname + window.location.search);
   return true;
 }
 

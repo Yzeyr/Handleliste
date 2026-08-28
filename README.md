@@ -49,7 +49,19 @@ Nøklene spørres om i appen og lagres i `localStorage` på hver telefon, så
 fila trenger ikke bygges på nytt når dere har opprettet prosjektet. Telefon
 nummer to slipper å taste noe: tannhjulet i appen gir en delingslenke med
 oppsettet i fragmentet (`#k=...`), og den som åpner den er koblet til med én
-gang. Vil du
+gang.
+
+En delingslenke kan komme fram på tre måter, og alle tre virker:
+
+1. **Vanlig sidelasting** med lenka.
+2. **Appen står allerede åpen** på samme adresse. Da bytter nettleseren bare
+   fragment uten å laste siden på nytt — appen fanger `hashchange`, tar i bruk
+   oppsettet og starter selv.
+3. **Fragmentet kom aldri fram**, for eksempel fordi meldingsappen kortet ned
+   lenka. Da står det et felt på oppsettsskjermen der hele lenka kan limes inn.
+
+`shareLink.ts` er ren og testet, nettopp fordi punkt 3 betyr at teksten kan
+komme i alle slags tilstander. Vil du
 heller bake dem inn ved bygging, legg dem i `.env` før `npm run build:single`
 — da hopper appen rett til lista.
 

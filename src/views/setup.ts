@@ -1,5 +1,5 @@
 import { el } from '../dom.ts';
-import { isConfigFixed, loadConfig, saveConfig } from '../lib/config.ts';
+import { applyShareText, isConfigFixed, loadConfig, saveConfig } from '../lib/config.ts';
 
 /**
  * Oppsettsskjerm for enkeltfil-utgaven: nøklene limes inn her i stedet for å
@@ -69,8 +69,47 @@ export function createSetupView(onSaved: () => void): HTMLElement {
     ],
   );
 
+  // Den enkleste veien først: lim inn lenka du fikk. Fragmentet (#k=...) kan
+  // bli borte når en lenke går gjennom en meldingsapp, eller hvis appen
+  // allerede sto åpen da lenka ble trykket — da er dette redningen.
+  const linkInput = el('input', {
+    attrs: {
+      type: 'text',
+      placeholder: 'Lim inn delingslenka',
+      'aria-label': 'Delingslenke',
+      autocomplete: 'off',
+      autocapitalize: 'off',
+      spellcheck: false,
+    },
+  });
+  const linkMessage = el('p', { class: 'form-error' });
+
+  const linkBlock = el('div', { class: 'setup-form' }, [
+    el('label', { text: 'Har du fått en delingslenke?' }),
+    linkInput,
+    linkMessage,
+    el('button', {
+      class: 'primary wide',
+      text: 'Bruk lenka',
+      attrs: { type: 'button' },
+      on: {
+        click: () => {
+          if (applyShareText(linkInput.value)) {
+            onSaved();
+            return;
+          }
+          linkMessage.textContent =
+            'Fant ikke oppsettet i den teksten. Kopier hele lenka, også delen etter #.';
+        },
+      },
+    }),
+  ]);
+
   return el('section', { class: 'view setup' }, [
     el('h2', { text: 'Koble til databasen' }),
+    !isConfigFixed() && linkBlock,
+    !isConfigFixed() && el('hr'),
+    !isConfigFixed() && el('h3', { class: 'section-title', text: 'Eller sett opp selv' }),
     el('ol', { class: 'setup-steps' }, [
       el('li', { text: 'Lag et gratis prosjekt på supabase.com.' }),
       el('li', { text: 'Kjør supabase/setup.sql i SQL Editor.' }),
