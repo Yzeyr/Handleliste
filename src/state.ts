@@ -1,11 +1,11 @@
-import type { Meal, ShoppingItem, WeekPlanItem } from './lib/types.ts';
+import type { Meal, Quantity, ShoppingItem, WeekPlanItem } from './lib/types.ts';
 
 export interface AppState {
   items: ShoppingItem[];
   meals: Meal[];
   week: WeekPlanItem[];
-  /** Arkiverte varer — samme rader som lista, bare ikke på den nå. */
-  history: ShoppingItem[];
+  /** Vareregisteret: arkiverte rader — samme rader som lista, bare ikke på den nå. */
+  register: ShoppingItem[];
 }
 
 export interface Actions {
@@ -13,7 +13,7 @@ export interface Actions {
   toggleChecked: (item: ShoppingItem) => void;
   removeItem: (item: ShoppingItem) => void;
   removeChecked: () => void;
-  addFromHistory: (item: ShoppingItem) => void;
+  addFromRegister: (item: ShoppingItem, quantities: Quantity[]) => void;
   forgetItem: (item: ShoppingItem) => void;
   clearList: () => void;
   toggleWeekMeal: (meal: Meal) => void;

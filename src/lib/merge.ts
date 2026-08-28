@@ -122,13 +122,22 @@ export function planListChange(
       inserts.push(pending);
       continue;
     }
-    const sourceMeals = [...existing.source_meals];
+
+    // En arkivert rad står ikke på lista. Mengden den bærer er et minne om
+    // sist den ble kjøpt — den skal foreslås i vareregisteret, ikke legges
+    // sammen med det som kommer nå. Ellers ville "1 l melk forrige uke" blitt
+    // med i denne ukas mengde.
+    const base = existing.archived
+      ? { quantities: [], sourceMeals: [] as string[] }
+      : { quantities: existing.quantities, sourceMeals: [...existing.source_meals] };
+
+    const sourceMeals = base.sourceMeals;
     for (const meal of pending.sourceMeals) {
       if (!sourceMeals.includes(meal)) sourceMeals.push(meal);
     }
     updates.push({
       item: existing,
-      quantities: mergeQuantities(existing.quantities, pending.quantities),
+      quantities: mergeQuantities(base.quantities, pending.quantities),
       sourceMeals,
     });
   }

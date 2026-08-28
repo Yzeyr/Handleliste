@@ -98,7 +98,7 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `quantities` | jsonb | `[{"amount":5,"unit":"dl"}]` |
 | `category` | text | butikk-seksjon |
 | `checked` | boolean | huket av i butikken; raden blir stående, bare gråtonet |
-| `archived` | boolean | har vært på lista, står ikke på den nå — dette er historikken |
+| `archived` | boolean | har vært på lista, står ikke på den nå — dette er vareregisteret |
 | `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
 | `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
 | `source_meals` | text[] | `{Lasagne,Fiskesuppe}` — vises som "fra Lasagne, Fiskesuppe". Tom = lagt inn manuelt |
@@ -178,14 +178,20 @@ src/lib/merge.ts       all sammenslåingslogikk (ren, uten database)
 src/lib/merge.test.ts  19 tester av det over
 src/lib/db.ts          Supabase-kall og realtime
 src/lib/db.mock.ts     samme API i minnet, for npm run dev:mock
-src/views/             liste, middager, uke
+src/views/             liste, middager, uke, varer
 ```
 
-## Historikk
+## Vareregisteret
 
-Varer slettes ikke når de fjernes fra lista — de settes `archived = true`,
-og mengde og middagsopphav nullstilles. Historikk-fanen er de radene, mest
-brukte først.
+Varer slettes ikke når de fjernes fra lista — de settes `archived = true`.
+Varer-fanen er de radene, mest brukte først: ett trykk på «+» legger varen
+tilbake med mengden den hadde sist, og åpner du raden kan du justere den
+først.
+
+Mengden blir altså stående på den arkiverte raden som et minne. Den regnes
+**ikke** med i noen sum: `planListChange` ser bort fra mengden på arkiverte
+rader, ellers ville forrige ukes liter melk blitt lagt til denne ukas
+oppskrift. Dekket av test.
 
 Det fine med å gjenbruke raden i stedet for å ha en egen historikktabell: den
 unike indeksen på `normalized_name` gjelder fortsatt, så en arkivert
@@ -193,9 +199,9 @@ unike indeksen på `normalized_name` gjelder fortsatt, så en arkivert
 skjer fra historikken, fra en middag eller ved å skrive den inn for hånd. Det
 kan ikke oppstå en arkivert og en aktiv rad for samme vare. Dekket av test.
 
-Navnene i historikken foreslås også mens du skriver i «Legg til vare».
+Navnene i registeret foreslås også mens du skriver i «Legg til vare».
 
-`×` i historikken sletter for godt. Det er det eneste stedet i appen noe
+«Slett fra varene» sletter for godt. Det er det eneste stedet i appen noe
 faktisk fjernes fra databasen.
 
 ## Realtime

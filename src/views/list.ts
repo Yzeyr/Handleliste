@@ -105,7 +105,7 @@ export function createListView(actions: Actions): View<AppState> {
   function update(state: AppState): void {
     replaceChildren(
       nameOptions,
-      state.history.map((item) => el('option', { attrs: { value: item.name } })),
+      state.register.map((item) => el('option', { attrs: { value: item.name } })),
     );
 
     const groups = GROUP_ORDER.map((category) => ({

@@ -155,7 +155,7 @@ export async function fetchList(): Promise<ShoppingItem[]> {
   return clone(items.filter((item) => !item.archived));
 }
 
-export async function fetchHistory(): Promise<ShoppingItem[]> {
+export async function fetchRegister(): Promise<ShoppingItem[]> {
   return clone(
     items
       .filter((item) => item.archived)
@@ -228,7 +228,6 @@ export async function setChecked(itemId: string, checked: boolean): Promise<void
 function archive(item: ShoppingItem): void {
   item.archived = true;
   item.checked = false;
-  item.quantities = [];
   item.source_meals = [];
   item.last_used_at = new Date().toISOString();
 }
@@ -249,12 +248,12 @@ export async function clearList(): Promise<void> {
   notify();
 }
 
-export async function addFromHistory(item: ShoppingItem): Promise<void> {
+export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]): Promise<void> {
   const found = items.find((row) => row.id === item.id);
   if (found !== undefined) {
     found.archived = false;
     found.checked = false;
-    found.quantities = [];
+    found.quantities = quantities;
     found.source_meals = [];
     found.use_count += 1;
     found.last_used_at = new Date().toISOString();

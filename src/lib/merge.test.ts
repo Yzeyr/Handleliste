@@ -238,3 +238,13 @@ test('en arkivert vare vekkes til live i stedet for å bli duplisert', () => {
   assert.equal(change.updates[0]!.item.id, arkivert.id);
   assert.equal(show(change.updates[0]!.quantities), '5 dl');
 });
+
+test('en arkivert vare bidrar ikke med gammel mengde', () => {
+  // Raden husker 1 l fra sist, men det skal ikke legges til denne ukas 5 dl.
+  const arkivert = listItem('Helmelk', [{ amount: 1, unit: 'l' }], ['Lasagne'], true);
+  const change = planListChange([arkivert], itemsFromMeals([meal('Fiskesuppe', [ing('Helmelk', 5, 'dl')])]));
+
+  assert.equal(change.updates.length, 1);
+  assert.equal(show(change.updates[0]!.quantities), '5 dl');
+  assert.deepEqual(change.updates[0]!.sourceMeals, ['Fiskesuppe'], 'gammelt middagsopphav skal ikke henge ved');
+});

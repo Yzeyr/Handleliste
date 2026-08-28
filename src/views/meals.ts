@@ -21,7 +21,7 @@ export function createMealsView(actions: Actions): View<AppState> {
   const body = el('div', { class: 'meals-body' });
   const element = el('section', { class: 'view' }, [el('div', { class: 'row' }, [search]), body]);
 
-  let current: AppState = { items: [], meals: [], week: [], history: [] };
+  let current: AppState = { items: [], meals: [], week: [], register: [] };
 
   function render(): void {
     const inWeek = new Set(current.week.map((w) => w.meal_id));

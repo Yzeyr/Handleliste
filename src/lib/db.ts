@@ -50,10 +50,10 @@ export async function fetchList(): Promise<ShoppingItem[]> {
 }
 
 /**
- * Historikken: varer som har vært på lista før, mest brukte først. Det er de
- * samme radene som lista — de er bare arkivert i stedet for slettet.
+ * Vareregisteret: varer som har vært på lista før, mest brukte først. Det er
+ * de samme radene som lista — de er bare arkivert i stedet for slettet.
  */
-export async function fetchHistory(): Promise<ShoppingItem[]> {
+export async function fetchRegister(): Promise<ShoppingItem[]> {
   const { data, error } = await sb()
     .from(LIST)
     .select('*')
@@ -61,7 +61,7 @@ export async function fetchHistory(): Promise<ShoppingItem[]> {
     .order('use_count', { ascending: false })
     .order('last_used_at', { ascending: false })
     .limit(200);
-  fail('Klarte ikke å hente historikken', error);
+  fail('Klarte ikke å hente vareregisteret', error);
   return (data ?? []) as ShoppingItem[];
 }
 
@@ -193,45 +193,45 @@ export async function setChecked(id: string, checked: boolean): Promise<void> {
 }
 
 /**
- * Å fjerne en vare arkiverer den i stedet for å slette den, slik at den blir
- * liggende i historikken. Mengde og middagsopphav nullstilles — kommer varen
- * tilbake, er det som en ny oppføring, ikke med gammel mengde hengende ved.
+ * Å fjerne en vare arkiverer den i stedet for å slette den, så den blir
+ * liggende i vareregisteret. Mengden blir stående som et minne om sist —
+ * registeret foreslår den neste gang. Den regnes ikke med i noen sum; se
+ * planListChange, som ser bort fra mengden på arkiverte rader.
+ * Middagsopphavet slippes, for det gjaldt den gangen.
  */
-const ARCHIVE_PATCH = {
-  archived: true,
-  checked: false,
-  quantities: [],
-  source_meals: [],
-  last_used_at: new Date().toISOString(),
-};
+function archivePatch(): Record<string, unknown> {
+  return {
+    archived: true,
+    checked: false,
+    source_meals: [],
+    last_used_at: new Date().toISOString(),
+  };
+}
 
 export async function removeItem(id: string): Promise<void> {
-  const { error } = await sb().from(LIST).update(ARCHIVE_PATCH).eq('id', id);
+  const { error } = await sb().from(LIST).update(archivePatch()).eq('id', id);
   fail('Klarte ikke å fjerne varen', error);
 }
 
 export async function removeCheckedItems(): Promise<void> {
   const { error } = await sb()
     .from(LIST)
-    .update({ ...ARCHIVE_PATCH, last_used_at: new Date().toISOString() })
+    .update(archivePatch())
     .eq('checked', true)
     .eq('archived', false);
   fail('Klarte ikke å fjerne avhukede varer', error);
 }
 
 export async function clearList(): Promise<void> {
-  const { error } = await sb()
-    .from(LIST)
-    .update({ ...ARCHIVE_PATCH, last_used_at: new Date().toISOString() })
-    .eq('archived', false);
+  const { error } = await sb().from(LIST).update(archivePatch()).eq('archived', false);
   fail('Klarte ikke å tømme lista', error);
 }
 
-/** Legger en vare fra historikken tilbake på lista, uten mengde. */
-export async function addFromHistory(item: ShoppingItem): Promise<void> {
+/** Legger en vare fra registeret på lista, med den mengden som ble valgt. */
+export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]): Promise<void> {
   const { error } = await sb()
     .from(LIST)
-    .update(revivePayload(item, [], []))
+    .update(revivePayload(item, quantities, []))
     .eq('id', item.id);
   fail(`Klarte ikke å legge til ${item.name}`, error);
 }

@@ -146,6 +146,38 @@ button { cursor: pointer; }
 .item { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: none; }
 
+/* Vareregisteret: raden kan folde seg ut, så den er en kolonne med en
+   trykkrad øverst i stedet for én flat rad. */
+.items .item:has(.item-row) { flex-direction: column; align-items: stretch; }
+.item-row { display: flex; align-items: stretch; }
+
+.quick-add {
+  flex: none;
+  width: 56px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.item.open { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+.register-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.register-details .row { align-items: stretch; }
+.register-details .amount, .register-details .unit { width: 30%; }
+.register-details .primary { flex: 1; }
+.register-details .ghost { align-self: flex-start; }
+
 .item-tap {
   flex: 1;
   min-width: 0;
@@ -174,7 +206,6 @@ button { cursor: pointer; }
 
 .item.checked .tick { border-color: var(--accent); }
 
-.tick.plus { border-style: dashed; font-size: 18px; font-weight: 600; }
 
 .item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .item-line { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
