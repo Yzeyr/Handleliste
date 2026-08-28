@@ -148,8 +148,20 @@ Feltene for mengde, enhet og kategori ligger bak «Mengde og kategori» og er
 bare til å overstyre med. De folder seg ikke ut av seg selv: et skjema som
 vokser når du trykker i det dytter lista nedover uten grunn.
 
-Navnene i registeret foreslås mens du skriver, og en rad på lista kan endres
-i ettertid — navn, mengde og kategori — via `⋯` på raden. Sletting ligger
+Trykker du i feltet, kommer varene du har hatt på lista før — **nyeste
+først**, med mengden de hadde sist. Ett trykk legger til, uten skriving. Det
+du allerede har på lista vises ikke. Skriver du, filtreres de.
+
+Panelet legger seg **oppå** lista i stedet for å dytte den nedover: et panel
+som endrer høyden på det under seg flytter radene mellom at fingeren går ned
+og opp, og da havner trykket feil. Det lukkes når du legger til med Enter —
+ellers ville det stått og dekket lista du nettopp la noe til i — men blir
+stående når du legger til fra forslagene, for da holder du på med flere.
+
+Sorteringen er bevisst nyeste først her, ikke mest kjøpte som i Varer: det du
+handlet sist er det du mest sannsynlig skal handle igjen.
+
+En rad på lista kan endres i ettertid — navn, mengde og kategori — via `⋯`. Sletting ligger
 inne i det skjemaet, ikke som en knapp ved siden av avhukingen, og alt som
 fjerner noe kan angres i noen sekunder etterpå.
 

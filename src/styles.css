@@ -189,6 +189,47 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 
 .add-preview:empty { display: none; }
+
+/* Forslagene ligger oppå lista, ikke over den: panelet skal ikke flytte
+   radene under seg mens en finger er på vei ned mot dem. */
+.add-form { position: relative; }
+
+.suggestions {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  margin-top: 6px;
+  max-height: 52vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
+}
+
+.add-form.suggesting .suggestions { display: block; }
+
+.suggestion {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 10px 14px;
+}
+
+.suggestion:last-child { border-bottom: none; }
+.suggestion-name { font-weight: 500; }
+.suggestion-qty { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { width: 33%; }
 .unit { width: 33%; }
 .category { flex: 1; min-width: 0; }

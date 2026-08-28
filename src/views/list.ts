@@ -22,6 +22,7 @@ const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks
 export function createListView(actions: Actions): View<AppState> {
   // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.
   let known: ShoppingItem[] = [];
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
 
   // Hvilke rader som står åpne for redigering. Holdes utenfor tegningen, så
   // en oppdatering fra den andre telefonen ikke lukker et skjema du står i.
@@ -34,12 +35,18 @@ export function createListView(actions: Actions): View<AppState> {
       placeholder: 'Legg til vare',
       'aria-label': 'Varenavn',
       autocomplete: 'off',
-      list: 'tidligere-varer',
+    },
+    on: {
+      // Ikke bare focusin: har feltet fokus fra før — som rett etter at du
+      // trykket Enter — fyrer ikke focusin, og et trykk i feltet ville ikke
+      // gjort noe. Det er nettopp trykket folk forventer skal vise lista.
+      click: () => {
+        suggestionsOpen = true;
+        renderSuggestions();
+      },
     },
   });
-  // Forslag fra historikken mens man skriver — den vanligste måten å hente
-  // fram en gammel vare på, uten å bytte fane.
-  const nameOptions = el('datalist', { attrs: { id: 'tidligere-varer' } });
+
   const amountInput = el('input', {
     class: 'amount',
     attrs: { type: 'number', inputmode: 'decimal', step: 'any', min: '0', placeholder: 'Antall', 'aria-label': 'Mengde' },
@@ -62,6 +69,17 @@ export function createListView(actions: Actions): View<AppState> {
   ]);
 
   const preview = el('p', { class: 'add-preview' });
+
+  /**
+   * Varer du har hatt på lista før, nyeste først, rett under skrivefeltet.
+   * For alt som kjøpes om igjen forsvinner skrivingen helt: trykk i feltet,
+   * trykk på varen, ferdig.
+   *
+   * Panelet legger seg OPPÅ lista i stedet for å dytte den nedover. Et panel
+   * som endrer høyden på det som ligger under, flytter radene mellom at
+   * fingeren går ned og opp, og da havner trykket feil.
+   */
+  const suggestions = el('div', { class: 'suggestions' });
 
   /**
    * Leser hele varen ut av ett felt: "2 l melk", "500 g kjøttdeig", "brød".
@@ -93,6 +111,50 @@ export function createListView(actions: Actions): View<AppState> {
     };
   }
 
+  let suggestionsOpen = false;
+
+  function renderSuggestions(): void {
+    const query = nameInput.value.trim().toLowerCase();
+    const onList = new Set(current.items.map((item) => item.normalized_name));
+
+    const matches = current.register
+      .filter((item) => !onList.has(item.normalized_name))
+      .filter((item) => query === '' || item.name.toLowerCase().includes(query))
+      // Nyeste først her, ikke mest kjøpte: det du handlet sist er det du
+      // mest sannsynlig skal handle igjen.
+      .sort((a, b) => b.last_used_at.localeCompare(a.last_used_at))
+      .slice(0, 8);
+
+    form.classList.toggle('suggesting', suggestionsOpen && matches.length > 0);
+    replaceChildren(
+      suggestions,
+      matches.map((item) => {
+        const amount = formatQuantities(item.quantities);
+        return el(
+          'button',
+          {
+            class: 'suggestion',
+            attrs: { type: 'button' },
+            on: {
+              // Hindrer at feltet mister fokus før trykket er ferdig.
+              mousedown: (event) => event.preventDefault(),
+              click: () => {
+                actions.addFromRegister(item, item.quantities);
+                nameInput.value = '';
+                preview.textContent = '';
+                renderSuggestions();
+              },
+            },
+          },
+          [
+            el('span', { class: 'suggestion-name', text: item.name }),
+            amount !== '' && el('span', { class: 'suggestion-qty', text: amount }),
+          ],
+        );
+      }),
+    );
+  }
+
   /** Viser hva som faktisk blir lagt til, så syntaksen lærer seg selv. */
   function showPreview(): void {
     const parsed = read();
@@ -118,7 +180,13 @@ export function createListView(actions: Actions): View<AppState> {
     unitInput.value = '';
     categorySelect.value = AUTO;
     preview.textContent = '';
+    // Fokus blir stående så neste vare kan skrives rett inn, men panelet
+    // lukkes: ellers står det og dekker lista du nettopp la noe til i.
+    // Skriver du videre, åpner det seg igjen. Legger du til fra forslagene,
+    // blir det stående — da holder du på med flere.
     nameInput.focus();
+    suggestionsOpen = false;
+    renderSuggestions();
   }
 
   const details = el('div', { class: 'row details' }, [amountInput, unitInput, categorySelect]);
@@ -135,7 +203,21 @@ export function createListView(actions: Actions): View<AppState> {
         // Detaljene folder seg ikke ut av seg selv lenger. Feltet over
         // forstår "2 l melk", så de trengs sjelden — og et skjema som vokser
         // når du trykker i det dytter lista nedover uten grunn.
-        input: () => showPreview(),
+        input: () => {
+          suggestionsOpen = true;
+          showPreview();
+          renderSuggestions();
+        },
+        focusin: () => {
+          suggestionsOpen = true;
+          renderSuggestions();
+        },
+        focusout: (event) => {
+          const next = (event as FocusEvent).relatedTarget;
+          if (next instanceof Node && form.contains(next)) return;
+          suggestionsOpen = false;
+          renderSuggestions();
+        },
       },
     },
     [
@@ -144,6 +226,7 @@ export function createListView(actions: Actions): View<AppState> {
         el('button', { class: 'primary', text: 'Legg til', attrs: { type: 'submit' } }),
       ]),
       preview,
+      suggestions,
       el('button', {
         class: 'detail-toggle',
         text: 'Mengde og kategori',
@@ -152,7 +235,6 @@ export function createListView(actions: Actions): View<AppState> {
       }),
       details,
       unitOptions,
-      nameOptions,
     ],
   );
 
@@ -163,12 +245,9 @@ export function createListView(actions: Actions): View<AppState> {
   const element = el('section', { class: 'view' }, [form, shoppingEntry, banner, body, footer]);
 
   function update(state: AppState): void {
+    current = state;
     known = [...state.items, ...state.register];
-    replaceChildren(
-      nameOptions,
-      state.register.map((item) => el('option', { attrs: { value: item.name } })),
-    );
-
+    renderSuggestions();
     const groups = GROUP_ORDER.map((category) => ({
       category,
       items: state.items
