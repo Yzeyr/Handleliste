@@ -20,9 +20,9 @@ For ekte, delt liste:
 1. Lag et gratis prosjekt på [supabase.com](https://supabase.com).
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
-   rekkefølge: `03_history.sql`, `04_notifications.sql`,
-   `05_edit_undo_aliases.sql`. De legger bare til det som er nytt, og er
-   trygge å kjøre flere ganger.
+   nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
+   `05_edit_undo_aliases.sql`, `06_manual.sql`. De legger bare til det som er
+   nytt, og er trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -119,6 +119,7 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `checked` | boolean | huket av i butikken; raden blir stående, gråtonet, nederst |
 | `archived` | boolean | har vært på lista, står ikke på den nå — dette er vareregisteret |
 | `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
+| `manual` | boolean | lagt inn for hånd minst én gang, ikke bare via oppskrift |
 | `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
 | `updated_by` | text | navnet på telefonen som sist skrev til raden |
 | `version` | integer | telles opp av en trigger; grunnlaget for sammenlign-og-bytt |
@@ -148,8 +149,17 @@ Feltene for mengde, enhet og kategori ligger bak «Mengde og kategori» og er
 bare til å overstyre med. De folder seg ikke ut av seg selv: et skjema som
 vokser når du trykker i det dytter lista nedover uten grunn.
 
-Trykker du i feltet, kommer varene du har hatt på lista før — **nyeste
-først**, med mengden de hadde sist. Ett trykk legger til, uten skriving. Det
+Trykker du i feltet, kommer **varene dere har lagt inn selv** — nyeste først,
+med mengden de hadde sist. Ingredienser som bare har kommet med en oppskrift
+(hvitløk, tomatpuré, potetmel) holdes utenfor: de hører hjemme i Varer, ikke
+i det som spretter opp når du skal skrive en handleliste.
+
+Skriver du noe, letes det derimot i alt — «hvitl» finner hvitløk. Da leter du
+etter noe bestemt, og appen skal finne det.
+
+Skillet ligger i kolonnen `manual`, som settes når en vare legges til uten
+middagsopphav og aldri slås av igjen. Legger du inn rømme for hånd én gang,
+er den din fra da av. Ett trykk legger til, uten skriving. Det
 du allerede har på lista vises ikke. Skriver du, filtreres de.
 
 Panelet legger seg **oppå** lista i stedet for å dytte den nedover: et panel

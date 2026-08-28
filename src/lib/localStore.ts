@@ -55,6 +55,7 @@ export function applyPendingLocal(
   for (const update of updates) {
     const live = state.items.find((row) => row.id === update.item.id);
     if (live === undefined) continue;
+    if (update.sourceMeals.length === 0) live.manual = true;
     live.quantities = update.quantities;
     live.source_meals = update.sourceMeals;
     live.checked = false;
@@ -79,6 +80,7 @@ export function applyPendingLocal(
       checked: false,
       archived: false,
       use_count: 1,
+      manual: insert.sourceMeals.length === 0,
       last_used_at: stamp,
       updated_by: author,
       version: 0,

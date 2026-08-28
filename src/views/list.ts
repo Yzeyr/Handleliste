@@ -119,7 +119,13 @@ export function createListView(actions: Actions): View<AppState> {
 
     const matches = current.register
       .filter((item) => !onList.has(item.normalized_name))
-      .filter((item) => query === '' || item.name.toLowerCase().includes(query))
+      // Uten søk: bare varer dere har lagt inn selv. Hvitløk og tomatpuré kom
+      // med en oppskrift og hører hjemme i Varer, ikke i det som spretter opp
+      // når du skal skrive en handleliste.
+      //
+      // Med søk: alt. Skriver du «hvitl», leter du etter noe bestemt, og da
+      // skal appen finne det.
+      .filter((item) => (query === '' ? item.manual : item.name.toLowerCase().includes(query)))
       // Nyeste først her, ikke mest kjøpte: det du handlet sist er det du
       // mest sannsynlig skal handle igjen.
       .sort((a, b) => b.last_used_at.localeCompare(a.last_used_at))

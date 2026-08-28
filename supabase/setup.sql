@@ -69,6 +69,11 @@ create table if not exists public.shopping_list_items (
   -- historikken faller ut av det uten en egen tabell.
   archived         boolean not null default false,
   use_count        integer not null default 1,
+  -- Om varen noen gang er lagt inn for hånd, i motsetning til å ha kommet
+  -- med en oppskrift. Forslagene under skrivefeltet viser bare disse:
+  -- hvitløk og tomatpuré hører hjemme i vareregisteret, ikke i det du får
+  -- opp når du skal skrive en handleliste. Settes aldri tilbake til false.
+  manual           boolean not null default false,
   last_used_at     timestamptz not null default now(),
   -- Hvilke middager linja kom fra, for visning: "fra Taco, Lasagne".
   -- Tom array = lagt inn manuelt.

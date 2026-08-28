@@ -106,6 +106,9 @@ function revivePayload(
     use_count: item.archived ? item.use_count + 1 : item.use_count,
     last_used_at: new Date().toISOString(),
     updated_by: deviceName(),
+    // En vare uten middagsopphav er lagt inn for hånd. Én gang holder —
+    // flagget slås aldri av igjen.
+    manual: item.manual || sourceMeals.length === 0,
   };
 }
 
@@ -117,6 +120,7 @@ function insertPayload(pending: PendingItem): Record<string, unknown> {
     category: pending.category,
     source_meals: pending.sourceMeals,
     updated_by: deviceName(),
+    manual: pending.sourceMeals.length === 0,
   };
 }
 
@@ -421,6 +425,7 @@ export async function restoreItems(items: readonly ShoppingItem[]): Promise<void
       checked: item.checked,
       archived: item.archived,
       use_count: item.use_count,
+      manual: item.manual,
       source_meals: item.source_meals,
       last_used_at: item.last_used_at,
       updated_by: item.updated_by,

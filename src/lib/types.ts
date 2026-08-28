@@ -37,6 +37,8 @@ export interface ShoppingItem {
   archived: boolean;
   /** Hvor mange ganger varen har vært lagt på lista. Sorterer historikken. */
   use_count: number;
+  /** Lagt inn for hånd minst én gang, ikke bare via en oppskrift. */
+  manual: boolean;
   last_used_at: string;
   /** Navnet på telefonen som sist skrev til raden. Null hvis ikke satt. */
   updated_by: string | null;

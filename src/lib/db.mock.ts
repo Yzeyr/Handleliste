@@ -258,6 +258,7 @@ function applyPending(pending: readonly PendingItem[]): void {
       }
       live.quantities = update.quantities;
       live.source_meals = update.sourceMeals;
+      if (update.sourceMeals.length === 0) live.manual = true;
       live.checked = false;
       if (live.archived) live.use_count += 1;
       live.archived = false;
@@ -281,6 +282,7 @@ function applyPending(pending: readonly PendingItem[]): void {
         checked: false,
         archived: false,
         use_count: 1,
+        manual: insert.sourceMeals.length === 0,
         last_used_at: now,
         updated_by: deviceName(),
         version: 0,
@@ -435,6 +437,7 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
     checked: false,
     archived: false,
     use_count: 1,
+    manual: true,
     last_used_at: now,
     updated_by: hvem,
     version: 0,

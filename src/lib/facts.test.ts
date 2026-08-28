@@ -15,6 +15,7 @@ function item(name: string): ShoppingItem {
     checked: false,
     archived: true,
     use_count: 1,
+    manual: false,
     last_used_at: '',
     updated_by: null,
     version: 0,
