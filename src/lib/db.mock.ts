@@ -410,10 +410,27 @@ export async function forgetItem(itemId: string): Promise<void> {
   notify();
 }
 
-export async function addMealToWeek(mealId: string, entryId?: string): Promise<void> {
+export async function addMealToWeek(
+  mealId: string,
+  entryId?: string,
+  weekday: number | null = null,
+): Promise<void> {
   krevNett();
-  if (week.some((entry) => entry.meal_id === mealId)) return;
-  week.push({ id: entryId ?? id(), meal_id: mealId, added_to_list: false });
+  const eksisterende = week.find((entry) => entry.meal_id === mealId);
+  if (eksisterende !== undefined) {
+    eksisterende.weekday = weekday;
+    notify();
+    return;
+  }
+  week.push({ id: entryId ?? id(), meal_id: mealId, added_to_list: false, weekday });
+  notify();
+}
+
+export async function setMealWeekday(mealId: string, weekday: number | null): Promise<void> {
+  krevNett();
+  const entry = week.find((row) => row.meal_id === mealId);
+  if (entry === undefined) return;
+  entry.weekday = weekday;
   notify();
 }
 

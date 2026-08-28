@@ -21,8 +21,9 @@ For ekte, delt liste:
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
    nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
-   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`. De legger
-   bare til det som er nytt, og er trygge å kjøre flere ganger.
+   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`,
+   `08_uke_og_kjopslogg.sql`. De legger bare til det som er nytt, og er trygge
+   å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -274,6 +275,55 @@ er derfor mengde og kategori leses ut av samme felt, og det er derfor
 avhukede varer samles nederst i stedet for å spres utover. Hver gang noe
 dagligdags krever et fanebytte, er det et tegn på at det hører hjemme et
 annet sted.
+
+## Ukemenyen
+
+Uke-fanen er satt opp etter dager, ikke som en pose middager. De sju dagene
+ligger der hele tiden, også de tomme: spørsmålet man sitter med er «hva spiser
+vi på torsdag», ikke «hvilke fire har vi valgt». En tom rad er en del av
+svaret.
+
+Valget skjer i en vanlig `<select>`. På telefon gir det systemets egen
+hjulvelger — større trykkflate og kjent oppførsel enn noe egenbygd, og
+ingenting nytt å lære. «—» på en dag betyr at vi ikke spiser den, ikke at den
+flyttes til en haug uten dag; det er det tomvalget ser ut som.
+
+`meal_id` har fortsatt unik indeks, så én middag har én plass i uka. Velger du
+den samme middagen på en annen dag, **flyttes** den. Samme middag to ganger i
+uka går altså ikke — det ville krevd at den indeksen røk, og med den også
+`+ Uke`-knappens av/på-modell inne på Middager.
+
+Middager valgt med `+ Uke` inne på Middager har ingen dag ennå. De havner
+under **Uten dag** med sin egen dagvelger, i stedet for å bli usynlige fordi
+de mangler et felt.
+
+## Kjøpsloggen
+
+`purchases` får én rad hver gang en avhuket vare ryddes bort — altså hver gang
+noe faktisk ble kjøpt.
+
+**Ingenting i appen leser den ennå.** Den finnes fordi intervaller ikke kan
+regnes ut i ettertid: vi lagrer `use_count` og `last_used_at`, og av ett tall
+og én dato kan man ikke utlede «omtrent hver sjette dag». Uten en logg som
+starter nå, har vi om et halvt år fortsatt bare ett tall og én dato. Koster én
+tabell å samle; kan ikke hentes inn igjen senere.
+
+Loggen skrives av en trigger i databasen, ikke av appen. «Dette ble kjøpt» er
+en egenskap ved overgangen på raden — `archived` fra usann til sann mens
+`checked` var sann — ikke ved hvilken knapp som ble trykket. Da blir den
+riktig uansett hvilken vei endringen kom inn, også når en offline-kø sendes
+i etterkant.
+
+Navnet lagres på raden, ikke bare som peker: en vare kan slettes for godt
+eller få nytt navn, og historikken skal fortsatt gi mening.
+
+Verifisert mot ekte Postgres: avhuket vare ryddet bort gir én rad; en
+uavhuket gir ingen; å hake av og av igjen gir ingen; kjøpt to ganger gir to
+rader; endringer på en allerede arkivert rad gir ingen; og sletter man varen,
+blir loggen stående med `item_id = null` og navnet i behold.
+
+Vil du se den: `select name, bought_at from purchases order by bought_at desc`
+i SQL-editoren.
 
 ## Handlemodus
 

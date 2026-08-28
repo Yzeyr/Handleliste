@@ -9,7 +9,7 @@
  * Id-er lages på telefonen, ikke i databasen, slik at en vare lagt til
  * offline peker på samme rad når køen sendes.
  */
-import type { Category, Quantity, ShoppingItem } from './types.ts';
+import type { Category, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 import type { PendingItem } from './merge.ts';
 
 export type Intent =
@@ -23,9 +23,10 @@ export type Intent =
   | { kind: 'edit'; id: string; patch: { name: string; category: Category; quantities: Quantity[] } }
   | { kind: 'forget'; id: string }
   | { kind: 'restore'; items: ShoppingItem[] }
-  | { kind: 'weekAdd'; mealId: string; id: string }
+  | { kind: 'weekAdd'; mealId: string; id: string; weekday: number | null }
+  | { kind: 'weekSetDay'; mealId: string; weekday: number | null }
   | { kind: 'weekRemove'; mealId: string }
-  | { kind: 'weekSet'; entries: { id: string; meal_id: string; added_to_list: boolean }[] };
+  | { kind: 'weekSet'; entries: WeekPlanItem[] };
 
 export interface QueuedIntent {
   id: string;
@@ -53,6 +54,7 @@ export function describeIntent(intent: Intent): string {
     case 'weekAdd':
     case 'weekRemove':
     case 'weekSet':
+    case 'weekSetDay':
       return 'endret ukemenyen';
   }
 }

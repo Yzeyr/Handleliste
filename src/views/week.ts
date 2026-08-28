@@ -1,16 +1,29 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import { itemsFromMeals, planListChange } from '../lib/merge.ts';
-import type { Meal } from '../lib/types.ts';
+import { WEEKDAYS, type Meal, type WeekPlanItem } from '../lib/types.ts';
 import { formatQuantities } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
+/**
+ * Ukemenyen, satt opp etter dager i stedet for som en pose middager.
+ *
+ * Dagene ligger der hele tiden, også de tomme: spørsmålet man sitter med er
+ * «hva spiser vi på torsdag», ikke «hvilke fire middager har vi valgt». En tom
+ * rad er en del av svaret.
+ *
+ * Valget skjer i en vanlig nedtrekksliste. På telefon gir det systemets egen
+ * hjulvelger — større trykkflate og kjent oppførsel enn noe egenbygd, og
+ * ingenting nytt å lære.
+ */
 export function createWeekView(actions: Actions): View<AppState> {
-  const body = el('div', { class: 'week-body' });
+  const days = el('ul', { class: 'day-list' });
+  const loose = el('div', { class: 'loose' });
   const preview = el('div', { class: 'preview' });
   const footer = el('div', { class: 'list-footer' });
   const element = el('section', { class: 'view' }, [
-    el('h2', { class: 'view-title', text: 'Denne uken skal vi ha' }),
-    body,
+    el('h2', { class: 'view-title', text: 'Denne uken' }),
+    days,
+    loose,
     preview,
     footer,
   ]);
@@ -19,28 +32,47 @@ export function createWeekView(actions: Actions): View<AppState> {
     const byId = new Map(state.meals.map((meal) => [meal.id, meal]));
     const chosen = state.week
       .map((entry) => ({ entry, meal: byId.get(entry.meal_id) }))
-      .filter((row): row is { entry: (typeof state.week)[number]; meal: Meal } => row.meal !== undefined);
+      .filter((row): row is { entry: WeekPlanItem; meal: Meal } => row.meal !== undefined);
 
-    if (chosen.length === 0) {
-      replaceChildren(body, [
-        el('p', { class: 'empty', text: 'Ingen middager valgt ennå. Gå til Middager og trykk «+ Uke».' }),
-      ]);
-      replaceChildren(preview, []);
-      replaceChildren(footer, []);
-      return;
-    }
+    const onDay = new Map(
+      chosen.filter(({ entry }) => entry.weekday !== null).map(({ entry, meal }) => [entry.weekday, { entry, meal }]),
+    );
 
     replaceChildren(
-      body,
-      [
+      days,
+      WEEKDAYS.map(({ day, name }) => {
+        const taken = onDay.get(day);
+        return el('li', { class: taken === undefined ? 'day-row empty' : 'day-row' }, [
+          el('span', { class: 'day-name', text: name }),
+          mealPicker(state.meals, taken?.meal ?? null, (meal) => {
+            // «—» betyr at vi ikke spiser den, ikke at den flyttes til en
+            // haug uten dag. Det er det tomvalget ser ut som.
+            if (meal === null && taken !== undefined) actions.toggleWeekMeal(taken.meal);
+            else if (meal !== null) actions.setWeekday(meal, day);
+          }),
+          taken !== undefined &&
+            taken.entry.added_to_list &&
+            el('span', { class: 'badge', text: 'lagt til' }),
+        ]);
+      }),
+    );
+
+    // Middager valgt med «+ Uke» inne på Middager har ingen dag ennå. De skal
+    // ikke bli usynlige bare fordi de mangler et felt.
+    const uten = chosen.filter(({ entry }) => entry.weekday === null);
+    replaceChildren(loose, [
+      uten.length > 0 && el('h3', { class: 'loose-title', text: 'Uten dag' }),
+      uten.length > 0 &&
         el(
           'ul',
-          { class: 'week-list' },
-          chosen.map(({ entry, meal }) =>
-            el('li', { class: 'week-item' }, [
-              el('span', { class: 'meal-emoji', text: meal.emoji ?? '🍽️' }),
-              el('span', { class: 'week-name', text: meal.name }),
-              entry.added_to_list && el('span', { class: 'badge', text: 'lagt til' }),
+          { class: 'day-list' },
+          uten.map(({ entry, meal }) =>
+            el('li', { class: 'day-row' }, [
+              el('span', { class: 'day-name' }, [
+                el('span', { class: 'meal-emoji', text: meal.emoji ?? '🍽️' }),
+                el('span', { text: meal.name }),
+              ]),
+              dayPicker(entry.weekday, (day) => actions.setWeekday(meal, day)),
               el('button', {
                 class: 'item-remove',
                 text: '×',
@@ -50,8 +82,18 @@ export function createWeekView(actions: Actions): View<AppState> {
             ]),
           ),
         ),
-      ],
-    );
+    ]);
+
+    if (chosen.length === 0) {
+      replaceChildren(preview, []);
+      replaceChildren(footer, [
+        el('p', {
+          class: 'empty',
+          text: 'Velg en middag på hver dag dere vil planlegge. Resten kan stå tomme.',
+        }),
+      ]);
+      return;
+    }
 
     // Forhåndsvisning av nøyaktig de linjene knappen kommer til å skrive,
     // regnet ut med samme funksjoner som gjør selve skrivingen.
@@ -93,7 +135,10 @@ export function createWeekView(actions: Actions): View<AppState> {
     replaceChildren(footer, [
       el('button', {
         class: 'primary wide',
-        text: pendingMeals.length === 0 ? 'Alt er lagt til' : `Legg til i handleliste (${pendingMeals.length})`,
+        text:
+          changedLines.length === 0
+            ? 'Alt er lagt til'
+            : `Handle alt · ${changedLines.length} ${changedLines.length === 1 ? 'vare' : 'varer'}`,
         attrs: { type: 'button', disabled: pendingMeals.length === 0 },
         on: { click: () => actions.addWeekToList() },
       }),
@@ -102,4 +147,51 @@ export function createWeekView(actions: Actions): View<AppState> {
   }
 
   return { element, update };
+}
+
+/** Nedtrekk over alle middagene, med tomvalget først. */
+function mealPicker(
+  meals: readonly Meal[],
+  current: Meal | null,
+  onPick: (meal: Meal | null) => void,
+): HTMLElement {
+  const select = el(
+    'select',
+    {
+      class: current === null ? 'day-pick empty' : 'day-pick',
+      attrs: { 'aria-label': 'Middag' },
+      on: {
+        change: () => onPick(meals.find((meal) => meal.id === select.value) ?? null),
+      },
+    },
+    [
+      el('option', { text: '—', attrs: { value: '', selected: current === null } }),
+      ...meals.map((meal) =>
+        el('option', {
+          text: `${meal.emoji ?? '🍽️'} ${meal.name}`,
+          attrs: { value: meal.id, selected: current?.id === meal.id },
+        }),
+      ),
+    ],
+  );
+  return select;
+}
+
+/** Nedtrekk over ukedagene, for en middag som ennå ikke har fått en. */
+function dayPicker(current: number | null, onPick: (day: number | null) => void): HTMLElement {
+  const select = el(
+    'select',
+    {
+      class: 'day-pick',
+      attrs: { 'aria-label': 'Ukedag' },
+      on: { change: () => onPick(select.value === '' ? null : Number(select.value)) },
+    },
+    [
+      el('option', { text: 'Velg dag', attrs: { value: '', selected: current === null } }),
+      ...WEEKDAYS.map(({ day, name }) =>
+        el('option', { text: name, attrs: { value: String(day), selected: current === day } }),
+      ),
+    ],
+  );
+  return select;
 }

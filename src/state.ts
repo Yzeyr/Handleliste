@@ -21,6 +21,7 @@ export interface Actions {
   forgetItem: (item: ShoppingItem) => void;
   clearList: () => void;
   toggleWeekMeal: (meal: Meal) => void;
+  setWeekday: (meal: Meal, weekday: number | null) => void;
   addWeekToList: () => void;
   clearWeek: () => void;
   goToList: () => void;

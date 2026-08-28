@@ -77,7 +77,19 @@ export interface WeekPlanItem {
   id: string;
   meal_id: string;
   added_to_list: boolean;
+  /** 1 = mandag ... 7 = søndag. null = valgt, men ikke satt på en dag. */
+  weekday: number | null;
 }
+
+export const WEEKDAYS = [
+  { day: 1, name: 'Mandag' },
+  { day: 2, name: 'Tirsdag' },
+  { day: 3, name: 'Onsdag' },
+  { day: 4, name: 'Torsdag' },
+  { day: 5, name: 'Fredag' },
+  { day: 6, name: 'Lørdag' },
+  { day: 7, name: 'Søndag' },
+] as const;
 
 /** En middag under redigering, før den har møtt databasen. */
 export interface MealDraft {

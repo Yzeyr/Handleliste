@@ -296,12 +296,22 @@ export async function forgetItem(id: string): Promise<void> {
 // Ukemeny
 // ---------------------------------------------------------------------------
 
-export async function addMealToWeek(mealId: string, id?: string): Promise<void> {
-  const row: Record<string, string> = { meal_id: mealId };
+export async function addMealToWeek(
+  mealId: string,
+  id?: string,
+  weekday: number | null = null,
+): Promise<void> {
+  const row: Record<string, unknown> = { meal_id: mealId, weekday };
   if (id !== undefined) row.id = id;
   const { error } = await sb().from('week_plan_items').insert(row);
-  if (error !== null && error.code === '23505') return; // alt i menyen
+  // Middagen sto der alt. Da er dette en flytting til en annen dag.
+  if (error !== null && error.code === '23505') return setMealWeekday(mealId, weekday);
   fail('Klarte ikke å legge middagen i ukemenyen', error);
+}
+
+export async function setMealWeekday(mealId: string, weekday: number | null): Promise<void> {
+  const { error } = await sb().from('week_plan_items').update({ weekday }).eq('meal_id', mealId);
+  fail('Klarte ikke å flytte middagen', error);
 }
 
 export async function removeMealFromWeek(mealId: string): Promise<void> {
@@ -325,7 +335,14 @@ export async function restoreWeek(entries: readonly WeekPlanItem[]): Promise<voi
   if (entries.length === 0) return;
   const { error } = await sb()
     .from('week_plan_items')
-    .insert(entries.map((entry) => ({ id: entry.id, meal_id: entry.meal_id, added_to_list: entry.added_to_list })));
+    .insert(
+      entries.map((entry) => ({
+        id: entry.id,
+        meal_id: entry.meal_id,
+        added_to_list: entry.added_to_list,
+        weekday: entry.weekday,
+      })),
+    );
   fail('Klarte ikke å angre ukemenyen', error);
 }
 

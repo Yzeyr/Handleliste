@@ -611,10 +611,60 @@ textarea {
 
 /* ---------- ukemeny ---------- */
 
-.week-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.week-item { display: flex; align-items: center; gap: 10px; padding: 10px 0 10px 12px; border-bottom: 1px solid var(--line); }
-.week-item:last-child { border-bottom: none; }
-.week-name { flex: 1; min-width: 0; }
+/* Ukemenyen: sju dagerader som alltid står der. En tom torsdag er en del av
+   svaret på «hva spiser vi i uka», ikke noe som skal skjules. */
+.day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--line);
+  min-height: 52px;
+}
+
+.day-row:last-child { border-bottom: none; }
+
+.day-name {
+  flex: none;
+  width: 5.6em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* Uten dag-lista har middagsnavn i stedet for ukedag, og de er lengre. */
+.loose .day-name { flex: 1; min-width: 0; width: auto; font-weight: 500; }
+
+.day-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.loose .day-pick { flex: none; width: auto; color: var(--muted); font-size: 14px; }
+
+/* En tom dag skal se tom ut, ikke som et utfylt felt som venter på noe. */
+.day-pick.empty { color: var(--muted); }
+.day-row.empty { background: transparent; }
+
+.loose { display: flex; flex-direction: column; gap: 8px; }
+.loose-title { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 
 .badge { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 2px 8px; }
 

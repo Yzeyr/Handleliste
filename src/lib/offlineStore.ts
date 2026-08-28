@@ -245,7 +245,10 @@ function applyLocally(intent: Intent, author: string | null): void {
       local.restoreLocal(state, intent.items);
       break;
     case 'weekAdd':
-      local.weekAddLocal(state, intent.mealId, intent.id);
+      local.weekAddLocal(state, intent.mealId, intent.id, intent.weekday);
+      break;
+    case 'weekSetDay':
+      local.weekSetDayLocal(state, intent.mealId, intent.weekday);
       break;
     case 'weekRemove':
       local.weekRemoveLocal(state, intent.mealId);
@@ -275,7 +278,9 @@ async function send(intent: Intent): Promise<void> {
     case 'restore':
       return db.restoreItems(intent.items);
     case 'weekAdd':
-      return db.addMealToWeek(intent.mealId, intent.id);
+      return db.addMealToWeek(intent.mealId, intent.id, intent.weekday);
+    case 'weekSetDay':
+      return db.setMealWeekday(intent.mealId, intent.weekday);
     case 'weekRemove':
       return db.removeMealFromWeek(intent.mealId);
     case 'weekSet':

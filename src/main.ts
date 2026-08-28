@@ -190,7 +190,15 @@ async function start(container: HTMLElement): Promise<void> {
       queue(() =>
         inWeek
           ? { kind: 'weekRemove', mealId: meal.id }
-          : { kind: 'weekAdd', mealId: meal.id, id: crypto.randomUUID() },
+          : { kind: 'weekAdd', mealId: meal.id, id: crypto.randomUUID(), weekday: null },
+      );
+    },
+    setWeekday: (meal: Meal, weekday: number | null) => {
+      const inWeek = state.week.some((entry) => entry.meal_id === meal.id);
+      queue(() =>
+        inWeek
+          ? { kind: 'weekSetDay', mealId: meal.id, weekday }
+          : { kind: 'weekAdd', mealId: meal.id, id: crypto.randomUUID(), weekday },
       );
     },
     addWeekToList: () => {

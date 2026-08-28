@@ -172,9 +172,25 @@ export function restoreLocal(state: LocalState, restored: readonly ShoppingItem[
   }
 }
 
-export function weekAddLocal(state: LocalState, mealId: string, id: string): void {
-  if (state.week.some((entry) => entry.meal_id === mealId)) return;
-  state.week.push({ id, meal_id: mealId, added_to_list: false });
+export function weekAddLocal(
+  state: LocalState,
+  mealId: string,
+  id: string,
+  weekday: number | null,
+): void {
+  // Middagen kan allerede stå i menyen uten dag. Da er dette en flytting, ikke
+  // et nytt innslag — én middag har én plass i uka.
+  const eksisterende = state.week.find((entry) => entry.meal_id === mealId);
+  if (eksisterende !== undefined) {
+    eksisterende.weekday = weekday;
+    return;
+  }
+  state.week.push({ id, meal_id: mealId, added_to_list: false, weekday });
+}
+
+export function weekSetDayLocal(state: LocalState, mealId: string, weekday: number | null): void {
+  const entry = state.week.find((row) => row.meal_id === mealId);
+  if (entry !== undefined) entry.weekday = weekday;
 }
 
 export function weekRemoveLocal(state: LocalState, mealId: string): void {
