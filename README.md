@@ -116,7 +116,7 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `normalized_name` | text, **unik indeks** | `helmelk` — dette er garantien mot duplikat-rader |
 | `quantities` | jsonb | `[{"amount":5,"unit":"dl"}]` |
 | `category` | text | butikk-seksjon |
-| `checked` | boolean | huket av i butikken; raden blir stående, bare gråtonet |
+| `checked` | boolean | huket av i butikken; raden blir stående, gråtonet, nederst |
 | `archived` | boolean | har vært på lista, står ikke på den nå — dette er vareregisteret |
 | `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
 | `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
@@ -252,6 +252,19 @@ De 19 middagene er et utgangspunkt, ikke fasiten. «+ Ny» under Middager, og
 framfor å flettes rad for rad — en oppskrift er liten, og «slett alt og skriv
 nytt» kan ikke etterlate en ingrediens du fjernet i skjemaet.
 
+## Én skjerm for det daglige
+
+Regelen appen styres etter: **alt du gjør stående i butikken eller på
+kjøkkenet skal skje på Liste, uten å bytte fane.** Se hva som mangler, legge
+til noe, hake av. De andre fanene er for det man gjør sittende — planlegge
+uka, skrive en oppskrift, rydde i vareregisteret.
+
+Det er derfor forslagene ligger under skrivefeltet i stedet for i Varer, det
+er derfor mengde og kategori leses ut av samme felt, og det er derfor
+avhukede varer samles nederst i stedet for å spres utover. Hver gang noe
+dagligdags krever et fanebytte, er det et tegn på at det hører hjemme et
+annet sted.
+
 ## Handlemodus
 
 «🛒 Start handling» øverst på lista tar over hele skjermen. Faner, skjema,
@@ -259,9 +272,10 @@ tannhjul og radmenyer forsvinner; igjen står store rader med navn og mengde,
 gruppert i den rekkefølgen man går gjennom butikken, og «7 / 17 varer» med en
 framdriftsstripe øverst.
 
-Avhukede varer blir stående der de er, gjennomstreket. De samler seg ikke i
-bunnen — å beholde butikkrekkefølgen er mer verdt enn å rydde dem unna, og
-det er greit å se hva man har tatt.
+Avhukede varer samles i én bolk nederst, gjennomstreket. Det som står igjen å
+handle krymper mens du går; det du har tatt er fortsatt synlig, men ute av
+veien. (Motsatt av det som sto her før — jeg mente butikkrekkefølgen var mer
+verdt enn å rydde unna, og det viste seg å være feil i faktisk bruk.)
 
 Er alt haket av, tilbyr den «Rydd bort og avslutt», som arkiverer varene
 (altså rett i vareregisteret) og går ut av modusen.

@@ -248,13 +248,17 @@ export function createListView(actions: Actions): View<AppState> {
     current = state;
     known = [...state.items, ...state.register];
     renderSuggestions();
-    const groups = GROUP_ORDER.map((category) => ({
-      category,
-      items: state.items
-        .filter((item) => item.category === category)
-        // Avhukede synker til bunnen av sin egen gruppe, men blir stående.
-        .sort((a, b) => Number(a.checked) - Number(b.checked)),
-    })).filter((group) => group.items.length > 0);
+    // Avhukede varer samles nederst i én bolk, ikke spredt utover i hver sin
+    // seksjon. Det som står igjen å handle skal krympe mens du jobber; det du
+    // har tatt skal fortsatt være synlig, men ute av veien.
+    const checked = state.items.filter((item) => item.checked);
+    const groups = [
+      ...GROUP_ORDER.map((category) => ({
+        category,
+        items: state.items.filter((item) => !item.checked && item.category === category),
+      })),
+      { category: `handlet (${checked.length})`, items: sortByCategory(checked) },
+    ].filter((group) => group.items.length > 0);
 
     if (groups.length === 0) {
       replaceChildren(body, [
@@ -317,6 +321,13 @@ export function createListView(actions: Actions): View<AppState> {
   }
 
   return { element, update };
+}
+
+/** Beholder butikkrekkefølgen inne i bolken, så den ikke stokker om seg. */
+function sortByCategory(items: readonly ShoppingItem[]): ShoppingItem[] {
+  return [...items].sort(
+    (a, b) => GROUP_ORDER.indexOf(a.category) - GROUP_ORDER.indexOf(b.category),
+  );
 }
 
 function renderItem(

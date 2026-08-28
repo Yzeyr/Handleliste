@@ -53,12 +53,21 @@ export function createShoppingView(actions: Actions, onExit: () => void): View<A
     progressText.textContent = total === 0 ? 'Lista er tom' : `${done} / ${total} varer`;
     progressFill.style.width = total === 0 ? '0%' : `${Math.round((done / total) * 100)}%`;
 
-    const groups = GROUP_ORDER.map((category) => ({
-      category,
-      items: state.items
-        .filter((item) => item.category === category)
-        .sort((a, b) => Number(a.checked) - Number(b.checked)),
-    })).filter((group) => group.items.length > 0);
+    // Samme regel som på lista: det du har tatt samles nederst. I butikken
+    // teller det enda mer — seksjonen du står i skal bare vise det du mangler.
+    const checked = state.items.filter((item) => item.checked);
+    const groups = [
+      ...GROUP_ORDER.map((category) => ({
+        category,
+        items: state.items.filter((item) => !item.checked && item.category === category),
+      })),
+      {
+        category: `handlet (${checked.length})`,
+        items: [...checked].sort(
+          (a, b) => GROUP_ORDER.indexOf(a.category) - GROUP_ORDER.indexOf(b.category),
+        ),
+      },
+    ].filter((group) => group.items.length > 0);
 
     replaceChildren(
       body,

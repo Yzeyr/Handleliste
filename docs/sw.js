@@ -11,7 +11,7 @@
 // Byttes ut av scripts/build-single.mjs med innholdssummen til bygget.
 // Uten det ville denne fila vært identisk fra bygg til bygg, og nettleseren
 // ville aldri sett at det finnes en ny utgave å installere.
-const BUILD = '1ABdBNLd';
+const BUILD = 'CXUDqVyh';
 const CACHE = `handleliste-${BUILD}`;
 const SHELL = ['./', './index.html', './icon-180.png', './icon-512.png', './manifest.webmanifest'];
 
