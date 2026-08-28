@@ -139,6 +139,23 @@ export const allMeals = (): Meal[] => meals;
 export const allAliases = (): { alias: string; canonical: string }[] => aliases;
 export const allPushTargets = (): PushTarget[] => pushTargets;
 
+/**
+ * Leser og tømmer den siste feilen. Tømmes ved lesing, ellers ville den blitt
+ * stående på skjermen lenge etter at den var håndtert.
+ */
+/**
+ * Feilen tømmes bare ved lesing — aldri av at noe annet gikk bra.
+ *
+ * Første forsøk nullstilte den i refreshFromServer, og da rakk en vellykket
+ * oppfriskning å viske ut feilen før skjermen fikk se den. At en lesing går
+ * bra sier ingenting om at en skriving ble avvist.
+ */
+export function takeLastError(): string | null {
+  const error = lastError;
+  lastError = null;
+  return error;
+}
+
 export async function refreshPushTargets(): Promise<PushTarget[]> {
   pushTargets = await db.fetchPushTargets();
   persist();
@@ -185,7 +202,6 @@ export async function refreshFromServer(options: { meals?: boolean } = {}): Prom
     return;
   }
   state = { items, week };
-  lastError = null;
   persist();
   announce();
 }
@@ -218,9 +234,6 @@ function applyLocally(intent: Intent, author: string | null): void {
       break;
     case 'revive':
       local.reviveLocal(state, intent.id, intent.quantities, author);
-      break;
-    case 'pin':
-      local.setPinnedLocal(state, intent.id, intent.pinned, author);
       break;
     case 'edit':
       local.editLocal(state, intent.id, intent.patch, author);
@@ -255,8 +268,6 @@ async function send(intent: Intent): Promise<void> {
       return db.archiveItems(intent.ids);
     case 'revive':
       return db.reviveItem(intent.id, intent.quantities);
-    case 'pin':
-      return db.setPinned(intent.id, intent.pinned);
     case 'edit':
       return db.updateItemById(intent.id, intent.patch);
     case 'forget':
@@ -290,10 +301,7 @@ export async function flush(): Promise<void> {
         // ikke var der — og som kanskje aldri kom fram.
         void announceToOthers(next.intent);
       } catch (error) {
-        if (looksLikeNetworkTrouble(error)) {
-          lastError = null;
-          return;
-        }
+        if (looksLikeNetworkTrouble(error)) return;
         // Databasen sa nei av en grunn som ikke går over av seg selv.
         // Handlingen kastes, ellers står køen fast for alltid.
         lastError = error instanceof Error ? error.message : 'En endring kunne ikke lagres';
@@ -338,7 +346,7 @@ function announcement(intent: Intent): string | null {
     case 'revive':
       return `la til ${nameOf(intent.id) ?? 'en vare'}`;
     case 'setChecked':
-      if (intent.checked) return null;
+      if (intent.checked || intent.quiet === true) return null;
       return `la ${nameOf(intent.id) ?? 'en vare'} tilbake på lista`;
     default:
       return null;

@@ -167,18 +167,6 @@ body {
 
 .card-actions { display: flex; gap: 10px; width: 100%; max-width: 420px; }
 
-.pin-mark {
-  flex: none;
-  color: var(--accent);
-  font-size: 13px;
-  line-height: 1;
-}
-
-/* Stjerna skal fortsatt leses på en avhuket rad, men ikke rope. */
-.item.checked .pin-mark { opacity: 0.5; }
-
-button.pinned { border-color: var(--accent); color: var(--accent); }
-
 .refresh-button { font-size: 20px; }
 .refresh-button:disabled { opacity: 1; }
 .refresh-button.spinning { animation: spin 0.7s linear infinite; }
@@ -397,6 +385,32 @@ button { cursor: pointer; }
    trykkrad øverst i stedet for én flat rad. */
 .items .item:has(.item-row) { flex-direction: column; align-items: stretch; }
 .item-row { display: flex; align-items: stretch; }
+
+/* Sveip mot venstre for å fjerne. pan-y slipper loddrett scroll gjennom, så
+   det å bla i lista aldri drar i radene. */
+.swipe { position: relative; overflow: hidden; }
+.swipe .item-row {
+  position: relative;
+  background: var(--surface);
+  touch-action: pan-y;
+  transition: transform 0.18s ease-out;
+}
+
+.swipe-back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 20px;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Sier fra at slippet nå kommer til å fjerne varen, mens fingeren fortsatt
+   er nede og du kan dra tilbake. */
+.swipe .item-row.will-remove { box-shadow: -6px 0 0 0 var(--danger); }
 
 .quick-add {
   flex: none;

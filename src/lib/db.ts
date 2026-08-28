@@ -374,19 +374,6 @@ function isRow(value: unknown): value is Partial<ShoppingItem> {
 // Redigering av en vare som står på lista
 // ---------------------------------------------------------------------------
 
-/**
- * Stjerna. Egen skriving, ikke en del av redigeringsskjemaet: den settes én
- * gang og leses ofte, og skal kunne slås av og på uten å røre navn eller
- * mengde.
- */
-export async function setPinned(id: string, pinned: boolean): Promise<void> {
-  const { error } = await sb()
-    .from(LIST)
-    .update({ pinned, updated_by: deviceName() })
-    .eq('id', id);
-  fail('Klarte ikke å endre fast vare', error);
-}
-
 export async function updateItem(
   item: ShoppingItem,
   patch: { name: string; category: Category; quantities: Quantity[] },
@@ -440,7 +427,6 @@ export async function restoreItems(items: readonly ShoppingItem[]): Promise<void
       archived: item.archived,
       use_count: item.use_count,
       manual: item.manual,
-      pinned: item.pinned,
       source_meals: item.source_meals,
       last_used_at: item.last_used_at,
       updated_by: item.updated_by,

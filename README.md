@@ -21,9 +21,8 @@ For ekte, delt liste:
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
    nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
-   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`,
-   `08_faste_varer.sql`. De legger bare til det som er nytt, og er trygge å
-   kjøre flere ganger.
+   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`. De legger
+   bare til det som er nytt, og er trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -459,26 +458,28 @@ ikke om hva slags kode det er. Forutsetningen er at koden er **den samme hver
 gang**. Bruker en kjede en engangskode som endrer seg, hjelper ingen lagret
 kopi, og da er kjedens egen app riktig verktøy.
 
-### Faste varer
+### Det du skriver inn selv, blir stående
 
-★ på en rad betyr én ting: **varen fjernes aldri, den hakes bare av.** Både
-«Fjern avhukede» og «Tøm lista» følger den regelen, som ligger samlet i
-`src/lib/clearing.ts` og er dekket av tester — det er nettopp en slik regel som
-råtner i stillhet når den ligger spredt i to klikk-handlere.
+Én regel, i `src/lib/clearing.ts` og dekket av tester: **«Fjern avhukede»,
+«Tøm lista» og «Rydd bort og avslutt» fjerner bare varer som kom fra en
+middag. Det du har lagt inn for hånd hakes av og blir stående.** Middagsvarer
+er engangsvarer for én oppskrift; egne varer er ting man kjøper igjen.
 
-Alternativet som ble forkastet: å la manuelt lagte varer overleve automatisk.
-Hvor en vare kom fra sier ingenting om du vil beholde den — «bursdagskake» er
-manuell og skal vekk, «melk» kan ha kommet fra en middag og skal bli. En regel
-utledet av opphav gjør knappene uforutsigbare; du må huske hver vares historie
-for å vite hva som skjer. Stjerna er eksplisitt, og du ser før du trykker hva
-som blir stående.
+Dette erstattet en stjerne man satte selv. Stjerna var riktig i teorien — hvor
+en vare kom fra sier i prinsippet ingenting om du vil beholde den — men i
+praksis var svaret alltid «behold det jeg skrev inn», og da er en innstilling
+bare et ekstra trykk foran det samme svaret. Regelen som gjetter riktig hver
+gang slår innstillingen som må settes hver gang.
 
-Stjerna settes i ⋯-skjemaet, ikke på raden. Raden har allerede to trykkflater,
-og en tredje på 68 px i en butikk blir feiltrykk — mens en stjerne settes én
-gang og leses hver gang. På raden er den derfor bare et merke.
+Vil du bli kvitt en vare, **sveiper du raden mot venstre**. Retningen avgjøres
+ved første bevegelse over 10 px: er den mest loddrett, slipper vi taket og
+lar siden scrolle, ellers følger raden fingeren. Over 96 px betyr slippet
+«fjern», og angre-knappen står i noen sekunder etterpå. Sveipet stanser sitt
+eget klikk, så en fjerning aldri også haker av varen.
 
-Fjerner du én enkelt vare fra ⋯-skjemaet, blir den fjernet — også en fast. Det
-er et bevisst trykk på akkurat den varen, ikke en opprydding.
+Avhukingen som skjer under en opprydding er merket `quiet` og sender ikke
+varsel. Uten det hadde en handletur med seks egne varer gitt samboeren seks
+meldinger på låseskjermen.
 
 ### «Er lista oppdatert?»
 
@@ -489,6 +490,18 @@ oppdateringsknapp uten kvittering gjør deg ikke sikrere enn før — og appen
 henter automatisk på nytt når den kommer fram i forgrunnen igjen. Knappen står
 også i handlemodus, der resten av toppen er skjult: det er nettopp i butikken
 man trenger å vite at lista er den ferskeste.
+
+### Når databasen sier nei
+
+En endring som blir avvist av en grunn som ikke går over av seg selv, kastes
+fra køen — ellers står køen fast for alltid. Den vises nå som «Ikke lagret: …»
+i toppen. Før forsvant den i stillhet: du så endringen på skjermen, og så var
+den borte igjen uten et ord.
+
+Feilen tømmes bare ved lesing, aldri av at noe annet gikk bra. Første forsøk
+nullstilte den i `refreshFromServer`, og da rakk en vellykket oppfriskning å
+viske den ut før skjermen fikk se den — at en lesing går bra sier ingenting om
+at en skriving ble avvist.
 
 ### Varsel på låseskjermen
 

@@ -81,7 +81,6 @@ export function applyPendingLocal(
       archived: false,
       use_count: 1,
       manual: insert.sourceMeals.length === 0,
-      pinned: false,
       last_used_at: stamp,
       updated_by: author,
       version: 0,
@@ -91,20 +90,6 @@ export function applyPendingLocal(
       updated_at: stamp,
     });
   });
-}
-
-export function setPinnedLocal(
-  state: LocalState,
-  id: string,
-  pinned: boolean,
-  author: string | null,
-): void {
-  const item = state.items.find((row) => row.id === id);
-  if (item === undefined) return;
-  item.pinned = pinned;
-  item.updated_by = author;
-  item.updated_at = now();
-  item.version += 1;
 }
 
 export function setCheckedLocal(

@@ -74,10 +74,6 @@ create table if not exists public.shopping_list_items (
   -- hvitløk og tomatpuré hører hjemme i vareregisteret, ikke i det du får
   -- opp når du skal skrive en handleliste. Settes aldri tilbake til false.
   manual           boolean not null default false,
-  -- Fast vare: fjernes aldri av «Tøm lista» eller «Fjern avhukede», den
-  -- hakes bare av. Settes av brukeren med stjerna, ikke utledet av noe —
-  -- hvor varen kom fra sier ingenting om du vil beholde den.
-  pinned           boolean not null default false,
   last_used_at     timestamptz not null default now(),
   -- Hvilke middager linja kom fra, for visning: "fra Taco, Lasagne".
   -- Tom array = lagt inn manuelt.

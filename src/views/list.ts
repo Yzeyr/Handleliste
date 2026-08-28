@@ -359,8 +359,7 @@ function renderItem(
     .filter(Boolean)
     .join(' ');
 
-  return el('li', { class: classes }, [
-    el('div', { class: 'item-row' }, [
+  const row = el('div', { class: 'item-row' }, [
       el(
         'button',
         {
@@ -372,15 +371,6 @@ function renderItem(
           el('span', { class: 'tick', text: item.checked ? '✓' : '' }),
           el('span', { class: 'item-main' }, [
             el('span', { class: 'item-line' }, [
-              // Stjerna er et merke, ikke en knapp: den settes én gang og
-              // leses hver gang. Raden har allerede to trykkflater, og en
-              // tredje på 68 px i en butikk blir feiltrykk.
-              item.pinned &&
-                el('span', {
-                  class: 'pin-mark',
-                  text: '★',
-                  attrs: { title: 'Fast vare', 'aria-label': 'Fast vare' },
-                }),
               el('span', { class: 'item-name', text: item.name }),
               quantity !== '' && el('span', { class: 'item-qty', text: quantity }),
               unseen &&
@@ -393,17 +383,100 @@ function renderItem(
           ]),
         ],
       ),
-      // Sletting ligger inne i skjemaet, ikke som en knapp rett ved siden av
-      // avhukingen. Ett feiltrykk i butikken skal ikke fjerne en vare.
+      // Sletting har ingen knapp ved siden av avhukingen. Ett feiltrykk i
+      // butikken skal ikke fjerne en vare — sveip eller ⋯ krever at du mente
+      // det.
       el('button', {
         class: 'item-edit',
         text: '⋯',
         attrs: { type: 'button', 'aria-expanded': isOpen, 'aria-label': `Endre ${item.name}` },
         on: { click: toggleOpen },
       }),
-    ]),
-    isOpen && renderEditor(item, actions, toggleOpen),
   ]);
+
+  const swipe = el('div', { class: 'swipe' }, [
+    el('div', { class: 'swipe-back' }, [el('span', { text: 'Fjern' })]),
+    row,
+  ]);
+  enableSwipeToRemove(row, () => actions.removeItem(item));
+
+  return el('li', { class: classes }, [swipe, isOpen && renderEditor(item, actions, toggleOpen)]);
+}
+
+/** Så langt raden må dras før slippet betyr «fjern». */
+const SWIPE_THRESHOLD = 96;
+/** Under dette er bevegelsen et trykk som skalv, ikke et sveip. */
+const SWIPE_SLOP = 10;
+
+/**
+ * Sveip mot venstre for å fjerne raden.
+ *
+ * Retningen avgjøres én gang, ved første bevegelse over slop-grensen: er den
+ * mest loddrett, slipper vi taket og lar siden scrolle som vanlig. Uten det
+ * ville hver scroll gjennom lista dratt i radene.
+ */
+function enableSwipeToRemove(row: HTMLElement, remove: () => void): void {
+  let startX = 0;
+  let startY = 0;
+  let axis: 'ukjent' | 'vannrett' | 'loddrett' = 'ukjent';
+  let dx = 0;
+
+  const slide = (x: number): void => {
+    row.style.transform = x === 0 ? '' : `translateX(${x}px)`;
+  };
+
+  row.addEventListener('pointerdown', (event: PointerEvent) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    startX = event.clientX;
+    startY = event.clientY;
+    axis = 'ukjent';
+    dx = 0;
+    row.style.transition = 'none';
+  });
+
+  row.addEventListener('pointermove', (event: PointerEvent) => {
+    if (startX === 0 && startY === 0) return;
+    const moveX = event.clientX - startX;
+    const moveY = event.clientY - startY;
+
+    if (axis === 'ukjent') {
+      if (Math.abs(moveX) < SWIPE_SLOP && Math.abs(moveY) < SWIPE_SLOP) return;
+      axis = Math.abs(moveX) > Math.abs(moveY) ? 'vannrett' : 'loddrett';
+      if (axis === 'vannrett') row.setPointerCapture(event.pointerId);
+    }
+    if (axis !== 'vannrett') return;
+
+    // Bare mot venstre. Å dra mot høyre gjør ingenting, så en skjev
+    // fingerbevegelse ikke ser ut som om den skal føre til noe.
+    dx = Math.min(0, moveX);
+    slide(dx);
+    row.classList.toggle('will-remove', -dx >= SWIPE_THRESHOLD);
+  });
+
+  function end(): void {
+    const wasSwipe = axis === 'vannrett';
+    const far = -dx >= SWIPE_THRESHOLD;
+    startX = 0;
+    startY = 0;
+    axis = 'ukjent';
+    dx = 0;
+    row.style.transition = '';
+    row.classList.remove('will-remove');
+
+    if (!wasSwipe) return;
+    // Et sveip skal aldri også hake av varen. Klikket kommer etter pointerup,
+    // så det må stanses i fangstfasen, én gang.
+    row.addEventListener('click', (click: Event) => {
+      click.stopPropagation();
+      click.preventDefault();
+    }, { capture: true, once: true });
+
+    if (far) remove();
+    else slide(0);
+  }
+
+  row.addEventListener('pointerup', end);
+  row.addEventListener('pointercancel', end);
 }
 
 function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): HTMLElement {
@@ -450,21 +523,9 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
     return [{ amount, unit: normalizeUnit(unitInput.value) }, ...item.quantities.slice(1)];
   }
 
-  const pinButton = el('button', {
-    class: item.pinned ? 'outline wide pinned' : 'outline wide',
-    text: item.pinned ? '★ Fast vare' : '☆ Gjør til fast vare',
-    attrs: { type: 'button', 'aria-pressed': item.pinned },
-    on: { click: () => actions.togglePinned(item) },
-  });
-
   return el('div', { class: 'item-editor' }, [
     nameInput,
     el('div', { class: 'row' }, [amountInput, unitInput, categorySelect]),
-    pinButton,
-    el('p', {
-      class: 'fine-print',
-      text: 'Faste varer fjernes ikke når lista tømmes — de hakes bare av.',
-    }),
     el('div', { class: 'row' }, [
       el('button', {
         class: 'primary grow',

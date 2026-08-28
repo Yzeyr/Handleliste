@@ -53,7 +53,6 @@ function listItem(
     archived,
     use_count: 1,
     manual: false,
-    pinned: false,
     last_used_at: '',
     updated_by: null,
     version: 0,

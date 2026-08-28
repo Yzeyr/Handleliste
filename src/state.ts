@@ -16,7 +16,6 @@ export interface Actions {
   addManual: (input: { name: string; amount: number | null; unit: string; category: string }) => void;
   toggleChecked: (item: ShoppingItem) => void;
   removeItem: (item: ShoppingItem) => void;
-  togglePinned: (item: ShoppingItem) => void;
   removeChecked: () => void;
   addFromRegister: (item: ShoppingItem, quantities: Quantity[]) => void;
   forgetItem: (item: ShoppingItem) => void;

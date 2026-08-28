@@ -179,8 +179,6 @@ async function start(container: HTMLElement): Promise<void> {
       queue(() => ({ kind: 'setChecked', id: item.id, checked: !item.checked })),
     removeItem: (item: ShoppingItem) =>
       queueUndoable(`${item.name} fjernet`, { kind: 'archive', ids: [item.id] }, [item]),
-    togglePinned: (item: ShoppingItem) =>
-      queue(() => ({ kind: 'pin', id: item.id, pinned: !item.pinned })),
     removeChecked: () => clear(state.items.filter((item) => item.checked)),
     addFromRegister: (item: ShoppingItem, quantities: Quantity[]) =>
       queue(() => ({ kind: 'revive', id: item.id, quantities })),
@@ -426,7 +424,9 @@ async function start(container: HTMLElement): Promise<void> {
     const before = [...remove, ...uncheck].map((item) => ({ ...item }));
 
     if (remove.length > 0) queue(() => ({ kind: 'archive', ids: remove.map((item) => item.id) }));
-    for (const item of uncheck) queue(() => ({ kind: 'setChecked', id: item.id, checked: false }));
+    for (const item of uncheck) {
+      queue(() => ({ kind: 'setChecked', id: item.id, checked: false, quiet: true }));
+    }
 
     offerUndo(clearLabel(remove.length, kept.length), async () => {
       store.apply({ kind: 'restore', items: before });
@@ -597,6 +597,10 @@ async function start(container: HTMLElement): Promise<void> {
 
   function showConnection(): void {
     const info = store.status();
+    // En endring databasen sa nei til ble kastet fra køen. Uten dette skjedde
+    // det i stillhet: du så endringen på skjermen, og så var den borte igjen.
+    const rejected = store.takeLastError();
+    if (rejected !== null) showStatus(`Ikke lagret: ${rejected}`, true);
     connection.classList.toggle('visible', !info.online || info.queued > 0);
     if (!info.online) {
       connection.textContent =

@@ -36,6 +36,19 @@ export function isConfigured(): boolean {
  * Uten nett skal mock-laget oppføre seg som et nettverk som er borte, ikke
  * som en database i lomma. Ellers ville offline-laget aldri blitt prøvd.
  */
+/**
+ * Testbryter: får neste avhuking til å feile slik en ekte database gjør når
+ * den sier nei — ikke som et nettverksbrudd. Det er den eneste måten å prøve
+ * at en avvist endring faktisk kommer på skjermen; uten den forsvant den i
+ * stillhet, og ingen test kunne se det. Ligger på avhukingen alene, ikke i
+ * krevNett, fordi en lesing ellers spiser flagget før skrivingen skjer.
+ */
+function feilNesteSkriving(): boolean {
+  const flagg = (window as unknown as Record<string, unknown>).__feilNesteSkriving === true;
+  if (flagg) (window as unknown as Record<string, unknown>).__feilNesteSkriving = false;
+  return flagg;
+}
+
 function krevNett(): void {
   if (!navigator.onLine) throw new Error('Failed to fetch');
   pullServer();
@@ -299,7 +312,6 @@ function applyPending(pending: readonly PendingItem[]): void {
         archived: false,
         use_count: 1,
         manual: insert.sourceMeals.length === 0,
-        pinned: false,
         last_used_at: now,
         updated_by: deviceName(),
         version: 0,
@@ -343,6 +355,7 @@ export async function addManualItem(input: {
 }
 
 export async function setChecked(itemId: string, checked: boolean): Promise<void> {
+  if (feilNesteSkriving()) throw new Error('databasen sa nei (testbryter)');
   krevNett();
   const found = items.find((item) => item.id === itemId);
   if (found !== undefined) found.checked = checked;
@@ -455,7 +468,6 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
     archived: false,
     use_count: 1,
     manual: true,
-    pinned: false,
     last_used_at: now,
     updated_by: hvem,
     version: 0,
@@ -599,17 +611,6 @@ export async function reviveItem(itemId: string, quantities: Quantity[]): Promis
   const found = items.find((row) => row.id === itemId);
   if (found === undefined) return;
   await addFromRegister(found, quantities);
-}
-
-export async function setPinned(itemId: string, pinned: boolean): Promise<void> {
-  krevNett();
-  const found = items.find((row) => row.id === itemId);
-  if (found === undefined) return;
-  found.pinned = pinned;
-  found.updated_by = deviceName();
-  found.updated_at = new Date().toISOString();
-  found.version += 1;
-  notify();
 }
 
 export async function updateItemById(
