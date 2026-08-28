@@ -32,6 +32,11 @@ if (jsFiles.length !== 1 || cssFiles.length !== 1) {
 const js = readFileSync(join(distDir, 'assets', jsFiles[0]), 'utf8');
 const css = readFileSync(join(distDir, 'assets', cssFiles[0]), 'utf8');
 
+// Byggets identitet. Vite navngir chunken etter innholdet, så den endrer seg
+// bare når koden faktisk har endret seg — og da, og bare da, skal appen si
+// fra at det finnes en ny utgave.
+const build = jsFiles[0].replace(/^index-|\.js$/g, '');
+
 // </script> inne i kildekoden ville lukket taggen vi limer den inn i.
 const safeJs = js.replaceAll('</script', '<\\/script');
 
@@ -61,4 +66,12 @@ const extras = readdirSync(distDir, { withFileTypes: true })
   .filter((entry) => entry.isFile() && entry.name !== 'index.html')
   .map((entry) => entry.name);
 for (const name of extras) copyFileSync(join(distDir, name), join(outDir, name));
-console.log(`\ndocs/index.html — ${(Buffer.byteLength(html) / 1024).toFixed(0)} kB, én fil, ingen eksterne kall`);
+
+// Service workeren må endre seg mellom bygg, ellers ser nettleseren aldri at
+// det finnes en ny utgave å installere.
+const swPath = join(outDir, 'sw.js');
+writeFileSync(swPath, readFileSync(swPath, 'utf8').replaceAll('__BUILD__', build));
+console.log(
+  `\ndocs/index.html — ${(Buffer.byteLength(html) / 1024).toFixed(0)} kB, én fil, ingen eksterne kall` +
+    `\nbygg ${build}`,
+);

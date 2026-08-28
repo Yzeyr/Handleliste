@@ -10,6 +10,7 @@ import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
 import { createMealEditor } from './views/mealEditor.ts';
 import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
+import { watchForAppUpdate } from './lib/appUpdate.ts';
 import { normalizeUnit } from './lib/units.ts';
 import type { Intent } from './lib/intent.ts';
 import { createSetupView } from './views/setup.ts';
@@ -33,14 +34,33 @@ if (root === null) throw new Error('Fant ikke #app');
 // En delingslenke fra den andre telefonen setter opp appen før noe annet.
 applyShareLink();
 
-// Service worker: appen skal laste uten nett. Registreres etter at siden er
-// oppe, så den ikke konkurrerer med første tegning. Feiler den — for eksempel
-// fordi siden kjøres fra file:// — er det ikke noe å gjøre med, og appen
-// virker fortsatt så lenge det er nett.
-if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('sw.js').catch(() => undefined);
+// Service worker: appen skal laste uten nett, og si fra når den er oppdatert.
+// Registreres etter første tegning, så den ikke konkurrerer om oppstarten.
+window.addEventListener('load', () => {
+  watchForAppUpdate({
+    onAvailable: (install) => showUpdateBar(install),
   });
+});
+
+/**
+ * Baren står til den blir trykket. En oppdatering er ikke noe hastverk, men
+ * den skal heller ikke forsvinne av seg selv slik varsler gjør — da ville du
+ * aldri fått den nye utgaven før du lukket appen helt.
+ */
+function showUpdateBar(install: () => void): void {
+  const existing = document.querySelector('.update-bar');
+  if (existing !== null) return;
+
+  const bar = el('div', { class: 'update-bar', attrs: { role: 'status' } }, [
+    el('span', { text: 'Appen er oppdatert' }),
+    el('button', {
+      class: 'update-load',
+      text: 'Last inn',
+      attrs: { type: 'button' },
+      on: { click: install },
+    }),
+  ]);
+  document.querySelector('.app-header')?.after(bar);
 }
 boot(root);
 

@@ -80,6 +80,28 @@ body {
 hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
 .status.error { color: var(--danger); }
 
+.update-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+  background: var(--accent);
+  color: #08240f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.update-load {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 14px;
+  background: #08240f;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+}
+
 .connection {
   display: none;
   padding: 8px 16px;
@@ -92,7 +114,29 @@ hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
 .connection.visible { display: block; }
 
 @media (prefers-color-scheme: dark) {
-  .connection { background: #b8860b; color: #1b1b1a; }
+  .update-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 16px;
+  background: var(--accent);
+  color: #08240f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.update-load {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 14px;
+  background: #08240f;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+}
+
+.connection { background: #b8860b; color: #1b1b1a; }
 }
 
 /* ---------- layout ---------- */

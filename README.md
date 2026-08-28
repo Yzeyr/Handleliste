@@ -263,6 +263,30 @@ feiler fordi databasen sier nei, kastes — ellers ville køen stått fast for
 alltid på noe som aldri kommer til å gå. `sw.js` gjør at selve appen laster
 uten nett (nett først, telefonen som reserve).
 
+## Når appen er oppdatert
+
+Service workeren installerer en ny utgave i bakgrunnen og blir stående og
+vente. Appen viser da en grønn bar: **Appen er oppdatert — Last inn**. Først
+når den trykkes får den nye utgaven ta over, og siden lastes på nytt. Å bytte
+kode uten å spørre ville betydd at noen som står midt i butikken plutselig
+ser noe annet enn for et sekund siden.
+
+Baren står til den blir trykket, i motsetning til varslene, som forsvinner av
+seg selv.
+
+To detaljer som gjør at det virker i det hele tatt:
+
+- `sw.js` må endre seg mellom bygg, ellers ser nettleseren aldri at det finnes
+  noe nytt. `build-single.mjs` stempler byggets innholdssum inn i fila — og
+  siden Vite navngir chunken etter innholdet, endrer den seg bare når koden
+  faktisk har endret seg.
+- Registreringen skjer på `sw.js` **uten** versjon i URL-en. Å versjonere
+  begge deler lager en ny registrering ved hver oppdatering, og da dukker
+  baren opp igjen med en gang du har trykket den bort.
+
+Appen ser etter nye utgaver når den kommer i forgrunnen, og ellers hver
+halvtime — en app på hjem-skjermen kan bli liggende åpen i dagevis.
+
 **Ikke i køen:** oppskrifter og synonymer. De endres sjelden, og aldri midt i
 en butikk; appen sier fra at det krever nett i stedet for å late som det gikk.
 Og to telefoner som endrer *samme* rad hver for seg mens begge er offline —

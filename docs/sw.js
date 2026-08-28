@@ -8,13 +8,23 @@
  * ville gjort at en ny utgave av appen ikke dukket opp før andre gang du
  * åpnet den, og det er en forvirrende måte å oppdatere på.
  */
-const CACHE = 'handleliste-v1';
+// Byttes ut av scripts/build-single.mjs med innholdssummen til bygget.
+// Uten det ville denne fila vært identisk fra bygg til bygg, og nettleseren
+// ville aldri sett at det finnes en ny utgave å installere.
+const BUILD = 'DP3GtQHX';
+const CACHE = `handleliste-${BUILD}`;
 const SHELL = ['./', './index.html', './icon-180.png', './icon-512.png', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
-  );
+  // Ingen skipWaiting her med vilje: den nye utgaven skal stå og vente til
+  // brukeren sier fra. Å bytte kode under føttene på noen som står midt i
+  // butikken er ikke en oppdatering, det er et avbrudd.
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+});
+
+// Appen sier fra når brukeren har trykket «Last inn».
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'taOver') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
