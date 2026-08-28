@@ -25,6 +25,13 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   if (props.text !== undefined) node.textContent = props.text;
 
   for (const [name, value] of Object.entries(props.attrs ?? {})) {
+    // aria-* er aldri "til stede / ikke til stede" slik disabled og readonly
+    // er: de tar teksten "true" eller "false". Uten dette unntaket ble
+    // aria-pressed={true} satt til tom streng, og false forsvant helt.
+    if (name.startsWith('aria-')) {
+      node.setAttribute(name, String(value));
+      continue;
+    }
     if (value === false) continue;
     node.setAttribute(name, value === true ? '' : String(value));
   }

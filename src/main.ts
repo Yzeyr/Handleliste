@@ -15,6 +15,7 @@ import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
 import { watchForAppUpdate } from './lib/appUpdate.ts';
 import { normalizeUnit } from './lib/units.ts';
 import type { Intent } from './lib/intent.ts';
+import { clearLabel, planClear } from './lib/clearing.ts';
 import { createSetupView } from './views/setup.ts';
 import {
   applyShareLink,
@@ -177,24 +178,14 @@ async function start(container: HTMLElement): Promise<void> {
       queue(() => ({ kind: 'setChecked', id: item.id, checked: !item.checked })),
     removeItem: (item: ShoppingItem) =>
       queueUndoable(`${item.name} fjernet`, { kind: 'archive', ids: [item.id] }, [item]),
-    removeChecked: () => {
-      const affected = state.items.filter((item) => item.checked);
-      if (affected.length === 0) return;
-      queueUndoable(
-        affected.length === 1 ? '1 vare fjernet' : `${affected.length} varer fjernet`,
-        { kind: 'archive', ids: affected.map((item) => item.id) },
-        affected,
-      );
-    },
+    togglePinned: (item: ShoppingItem) =>
+      queue(() => ({ kind: 'pin', id: item.id, pinned: !item.pinned })),
+    removeChecked: () => clear(state.items.filter((item) => item.checked)),
     addFromRegister: (item: ShoppingItem, quantities: Quantity[]) =>
       queue(() => ({ kind: 'revive', id: item.id, quantities })),
     forgetItem: (item: ShoppingItem) =>
       queueUndoable(`${item.name} slettet`, { kind: 'forget', id: item.id }, [item]),
-    clearList: () => {
-      const affected = [...state.items];
-      if (affected.length === 0) return;
-      queueUndoable('Lista tømt', { kind: 'archive', ids: affected.map((item) => item.id) }, affected);
-    },
+    clearList: () => clear([...state.items]),
     toggleWeekMeal: (meal: Meal) => {
       const inWeek = state.week.some((entry) => entry.meal_id === meal.id);
       queue(() =>
@@ -396,6 +387,32 @@ async function start(container: HTMLElement): Promise<void> {
     } catch (error) {
       showStatus(error instanceof Error ? error.message : 'Noe gikk galt', true);
     }
+  }
+
+  /**
+   * «Fjern avhukede» og «Tøm lista» gjør samme jobb på hvert sitt utvalg.
+   * Selve regelen ligger i clearing.ts, uten DOM rundt seg.
+   */
+  function clear(candidates: ShoppingItem[]): void {
+    const { remove, kept, uncheck } = planClear(candidates);
+    if (remove.length === 0 && uncheck.length === 0) {
+      // Alt som sto der var faste og uhakede. Da skjer det ingenting — men
+      // «jeg trykket og ingenting skjedde» trenger et svar.
+      if (kept.length > 0) showStatus(clearLabel(0, kept.length));
+      return;
+    }
+
+    // Radene tas vare på slik de var før: angre skal både hente tilbake de
+    // fjernede og sette haken tilbake på de faste.
+    const before = [...remove, ...uncheck].map((item) => ({ ...item }));
+
+    if (remove.length > 0) queue(() => ({ kind: 'archive', ids: remove.map((item) => item.id) }));
+    for (const item of uncheck) queue(() => ({ kind: 'setChecked', id: item.id, checked: false }));
+
+    offerUndo(clearLabel(remove.length, kept.length), async () => {
+      store.apply({ kind: 'restore', items: before });
+      readFromStore();
+    });
   }
 
   /** Som `queue`, men med en angre-knapp i noen sekunder etterpå. */

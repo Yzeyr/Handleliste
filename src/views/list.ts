@@ -362,6 +362,15 @@ function renderItem(
           el('span', { class: 'tick', text: item.checked ? '✓' : '' }),
           el('span', { class: 'item-main' }, [
             el('span', { class: 'item-line' }, [
+              // Stjerna er et merke, ikke en knapp: den settes én gang og
+              // leses hver gang. Raden har allerede to trykkflater, og en
+              // tredje på 68 px i en butikk blir feiltrykk.
+              item.pinned &&
+                el('span', {
+                  class: 'pin-mark',
+                  text: '★',
+                  attrs: { title: 'Fast vare', 'aria-label': 'Fast vare' },
+                }),
               el('span', { class: 'item-name', text: item.name }),
               quantity !== '' && el('span', { class: 'item-qty', text: quantity }),
               unseen &&
@@ -431,9 +440,21 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
     return [{ amount, unit: normalizeUnit(unitInput.value) }, ...item.quantities.slice(1)];
   }
 
+  const pinButton = el('button', {
+    class: item.pinned ? 'outline wide pinned' : 'outline wide',
+    text: item.pinned ? '★ Fast vare' : '☆ Gjør til fast vare',
+    attrs: { type: 'button', 'aria-pressed': item.pinned },
+    on: { click: () => actions.togglePinned(item) },
+  });
+
   return el('div', { class: 'item-editor' }, [
     nameInput,
     el('div', { class: 'row' }, [amountInput, unitInput, categorySelect]),
+    pinButton,
+    el('p', {
+      class: 'fine-print',
+      text: 'Faste varer fjernes ikke når lista tømmes — de hakes bare av.',
+    }),
     el('div', { class: 'row' }, [
       el('button', {
         class: 'primary grow',

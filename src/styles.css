@@ -72,6 +72,18 @@ body {
   color: var(--muted);
 }
 
+.pin-mark {
+  flex: none;
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Stjerna skal fortsatt leses på en avhuket rad, men ikke rope. */
+.item.checked .pin-mark { opacity: 0.5; }
+
+button.pinned { border-color: var(--accent); color: var(--accent); }
+
 .refresh-button { font-size: 20px; }
 .refresh-button:disabled { opacity: 1; }
 .refresh-button.spinning { animation: spin 0.7s linear infinite; }

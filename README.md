@@ -21,8 +21,9 @@ For ekte, delt liste:
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
    nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
-   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`. De legger bare til det som er
-   nytt, og er trygge å kjøre flere ganger.
+   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`,
+   `08_faste_varer.sql`. De legger bare til det som er nytt, og er trygge å
+   kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -423,6 +424,27 @@ slik den var *før* endringen. Uten det kan ikke appen skille «haket av» fra
 «fjernet», og varslene blir upresise. `describeChange` i
 `src/lib/changes.ts` er ren og dekket av tester nettopp fordi det er her det
 er lett å si noe som er feil.
+
+### Faste varer
+
+★ på en rad betyr én ting: **varen fjernes aldri, den hakes bare av.** Både
+«Fjern avhukede» og «Tøm lista» følger den regelen, som ligger samlet i
+`src/lib/clearing.ts` og er dekket av tester — det er nettopp en slik regel som
+råtner i stillhet når den ligger spredt i to klikk-handlere.
+
+Alternativet som ble forkastet: å la manuelt lagte varer overleve automatisk.
+Hvor en vare kom fra sier ingenting om du vil beholde den — «bursdagskake» er
+manuell og skal vekk, «melk» kan ha kommet fra en middag og skal bli. En regel
+utledet av opphav gjør knappene uforutsigbare; du må huske hver vares historie
+for å vite hva som skjer. Stjerna er eksplisitt, og du ser før du trykker hva
+som blir stående.
+
+Stjerna settes i ⋯-skjemaet, ikke på raden. Raden har allerede to trykkflater,
+og en tredje på 68 px i en butikk blir feiltrykk — mens en stjerne settes én
+gang og leses hver gang. På raden er den derfor bare et merke.
+
+Fjerner du én enkelt vare fra ⋯-skjemaet, blir den fjernet — også en fast. Det
+er et bevisst trykk på akkurat den varen, ikke en opprydding.
 
 ### «Er lista oppdatert?»
 

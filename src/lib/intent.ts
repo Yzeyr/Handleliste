@@ -18,6 +18,7 @@ export type Intent =
   | { kind: 'archive'; ids: string[] }
   | { kind: 'revive'; id: string; quantities: Quantity[] }
   | { kind: 'edit'; id: string; patch: { name: string; category: Category; quantities: Quantity[] } }
+  | { kind: 'pin'; id: string; pinned: boolean }
   | { kind: 'forget'; id: string }
   | { kind: 'restore'; items: ShoppingItem[] }
   | { kind: 'weekAdd'; mealId: string; id: string }
@@ -43,6 +44,8 @@ export function describeIntent(intent: Intent): string {
       return 'la til en vare fra registeret';
     case 'edit':
       return `endret ${intent.patch.name}`;
+    case 'pin':
+      return intent.pinned ? 'gjorde en vare fast' : 'fjernet en fast vare';
     case 'forget':
       return 'slettet en vare';
     case 'restore':

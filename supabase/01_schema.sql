@@ -72,6 +72,10 @@ create table if not exists public.shopping_list_items (
   -- hvitløk og tomatpuré hører hjemme i vareregisteret, ikke i det du får
   -- opp når du skal skrive en handleliste. Settes aldri tilbake til false.
   manual           boolean not null default false,
+  -- Fast vare: fjernes aldri av «Tøm lista» eller «Fjern avhukede», den
+  -- hakes bare av. Settes av brukeren med stjerna, ikke utledet av noe —
+  -- hvor varen kom fra sier ingenting om du vil beholde den.
+  pinned           boolean not null default false,
   last_used_at     timestamptz not null default now(),
   -- Hvilke middager linja kom fra, for visning: "fra Taco, Lasagne".
   -- Tom array = lagt inn manuelt.
@@ -134,6 +138,19 @@ create table if not exists public.week_plan_items (
   meal_id       uuid not null unique references public.meals(id) on delete cascade,
   added_to_list boolean not null default false,
   created_at    timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- push_targets — én rad per telefon som vil ha varsel på låseskjermen
+--
+-- Kanalen ligger her, ikke bare på telefonen, slik at den andre telefonen vet
+-- hvor den skal sende uten at noen setter opp hverandres kanal for hånd.
+-- ---------------------------------------------------------------------------
+create table if not exists public.push_targets (
+  device_id  text primary key,
+  label      text,
+  topic      text not null,
+  created_at timestamptz not null default now()
 );
 
 -- ---------------------------------------------------------------------------

@@ -219,6 +219,9 @@ function applyLocally(intent: Intent, author: string | null): void {
     case 'revive':
       local.reviveLocal(state, intent.id, intent.quantities, author);
       break;
+    case 'pin':
+      local.setPinnedLocal(state, intent.id, intent.pinned, author);
+      break;
     case 'edit':
       local.editLocal(state, intent.id, intent.patch, author);
       break;
@@ -252,6 +255,8 @@ async function send(intent: Intent): Promise<void> {
       return db.archiveItems(intent.ids);
     case 'revive':
       return db.reviveItem(intent.id, intent.quantities);
+    case 'pin':
+      return db.setPinned(intent.id, intent.pinned);
     case 'edit':
       return db.updateItemById(intent.id, intent.patch);
     case 'forget':

@@ -39,6 +39,8 @@ export interface ShoppingItem {
   use_count: number;
   /** Lagt inn for hånd minst én gang, ikke bare via en oppskrift. */
   manual: boolean;
+  /** Fast vare: fjernes aldri av «Tøm lista» eller «Fjern avhukede». */
+  pinned: boolean;
   last_used_at: string;
   /** Navnet på telefonen som sist skrev til raden. Null hvis ikke satt. */
   updated_by: string | null;

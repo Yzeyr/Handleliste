@@ -299,6 +299,7 @@ function applyPending(pending: readonly PendingItem[]): void {
         archived: false,
         use_count: 1,
         manual: insert.sourceMeals.length === 0,
+        pinned: false,
         last_used_at: now,
         updated_by: deviceName(),
         version: 0,
@@ -454,6 +455,7 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
     archived: false,
     use_count: 1,
     manual: true,
+    pinned: false,
     last_used_at: now,
     updated_by: hvem,
     version: 0,
@@ -597,6 +599,17 @@ export async function reviveItem(itemId: string, quantities: Quantity[]): Promis
   const found = items.find((row) => row.id === itemId);
   if (found === undefined) return;
   await addFromRegister(found, quantities);
+}
+
+export async function setPinned(itemId: string, pinned: boolean): Promise<void> {
+  krevNett();
+  const found = items.find((row) => row.id === itemId);
+  if (found === undefined) return;
+  found.pinned = pinned;
+  found.updated_by = deviceName();
+  found.updated_at = new Date().toISOString();
+  found.version += 1;
+  notify();
 }
 
 export async function updateItemById(
