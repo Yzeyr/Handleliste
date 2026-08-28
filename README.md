@@ -437,6 +437,11 @@ forventer er ikke noe vi kan slå fast, og en kode som er gjettet feil oppdager
 du først i kassa. Et skjermbilde fra kjedens egen app er nøyaktig det som
 virket sist.
 
+Skjermen er delt etter hvor ofte man gjør ting: kortene er store fliser med
+bildet i full bredde, mens «Legg til kort» ligger bak en knapp. Første utgave
+gjorde det motsatt — skjemaet tok halve skjermen, og kortet man kom for var en
+miniatyr på 64×44 px. Det er nå 332×200.
+
 **Beskjæring hører til her, ikke i Bilder-appen.** Et skjermbilde fra kjedens
 app har koden midt i mye annet; vist tilpasset skjermen blir selve koden liten,
 og det er den skanneren skal lese. Dra en firkant rundt koden før du lagrer, så

@@ -74,32 +74,36 @@ body {
 
 /* --- Medlemskort --------------------------------------------------------- */
 
-.card-list { display: flex; flex-direction: column; gap: 10px; }
+.card-list { display: flex; flex-direction: column; gap: 12px; }
 
+/* Kortet er det man kom hit for. Det skal se ut som et kort, ikke som en
+   linje i en liste — og være stort nok til å kjennes igjen med et blikk. */
 .card-tile {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
-  text-align: left;
+  padding: 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
-/* Hvit bakgrunn bak miniatyren også: et skjermbilde av en strekkode er som
-   regel svart på hvitt, og forsvinner mot et mørkt kort. */
+/* Hvit bakgrunn bak bildet også: en kode er som regel svart på hvitt, og
+   forsvinner mot et mørkt kort. */
 .card-thumb {
-  flex: none;
-  width: 64px;
-  height: 44px;
+  width: 100%;
+  height: 200px;
   object-fit: contain;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
-.card-name { font-size: 16px; font-weight: 600; }
+.card-name { font-size: 17px; font-weight: 600; text-align: center; }
+
+.add-card { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+/* Samme felle som .crop-wrap: display over [hidden]. */
+.add-card[hidden] { display: none; }
 
 .card-file { padding: 10px; }
 

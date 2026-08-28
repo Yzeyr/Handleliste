@@ -176,24 +176,21 @@ export function createCardsView(onClose: () => void): HTMLElement {
       objectUrl = null;
       cropWrap.hidden = true;
       setCrop(FULL_IMAGE);
-      feedback.textContent = `${name} lagret på denne telefonen.`;
       render();
+      setAdding(false);
+      feedback.textContent = `${name} er lagret på denne telefonen.`;
     } catch (error) {
       feedback.textContent = error instanceof Error ? error.message : 'Klarte ikke å lagre bildet';
     }
   }
 
-  render();
-
-  return el('section', { class: 'view' }, [
-    el('h2', { class: 'view-title', text: 'Kort' }),
+  // Å legge inn et kort gjør man én gang. Å vise det gjør man i hver kasse.
+  // Skjemaet ligger derfor bak en knapp, og kortene får plassen.
+  const addForm = el('div', { class: 'add-card' }, [
     el('p', {
       class: 'fine-print',
       text: 'Ligger bare på denne telefonen — ikke i den delte lista. Samboeren legger inn sine egne.',
     }),
-    list,
-    el('hr'),
-    el('h2', { class: 'view-title', text: 'Legg til kort' }),
     nameInput,
     fileInput,
     cropWrap,
@@ -204,7 +201,38 @@ export function createCardsView(onClose: () => void): HTMLElement {
       attrs: { type: 'button' },
       on: { click: () => void save() },
     }),
+  ]);
+  addForm.hidden = true;
+
+  const addToggle = el('button', {
+    class: 'ghost wide',
+    text: '+ Legg til kort',
+    attrs: { type: 'button', 'aria-expanded': false },
+    on: {
+      click: () => {
+        // «Avbryt» skal ikke etterlate seg en gammel feilmelding, men en
+        // bekreftelse etter lagring skal bli stående — den ligger derfor
+        // utenfor skjemaet og tømmes bare her.
+        feedback.textContent = '';
+        setAdding(addForm.hidden);
+      },
+    },
+  });
+
+  function setAdding(open: boolean): void {
+    addForm.hidden = !open;
+    addToggle.setAttribute('aria-expanded', String(open));
+    addToggle.textContent = open ? 'Avbryt' : '+ Legg til kort';
+  }
+
+  render();
+
+  return el('section', { class: 'view' }, [
+    el('h2', { class: 'view-title', text: 'Kort' }),
+    list,
+    addToggle,
     feedback,
+    addForm,
     el('button', { class: 'ghost', text: 'Tilbake', attrs: { type: 'button' }, on: { click: onClose } }),
   ]);
 }
