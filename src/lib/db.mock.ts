@@ -18,6 +18,14 @@ export function isConfigured(): boolean {
   return true;
 }
 
+/**
+ * Uten nett skal mock-laget oppføre seg som et nettverk som er borte, ikke
+ * som en database i lomma. Ellers ville offline-laget aldri blitt prøvd.
+ */
+function krevNett(): void {
+  if (!navigator.onLine) throw new Error('Failed to fetch');
+}
+
 let nextId = 0;
 const id = (): string => `mock-${(nextId += 1)}`;
 
@@ -150,14 +158,17 @@ function notify(event: ChangeEvent | null = null): void {
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 export async function fetchMeals(): Promise<Meal[]> {
+  krevNett();
   return clone(MEALS);
 }
 
 export async function fetchList(): Promise<ShoppingItem[]> {
+  krevNett();
   return clone(items.filter((item) => !item.archived));
 }
 
 export async function fetchRegister(): Promise<ShoppingItem[]> {
+  krevNett();
   return clone(
     items
       .filter((item) => item.archived)
@@ -166,6 +177,7 @@ export async function fetchRegister(): Promise<ShoppingItem[]> {
 }
 
 export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
+  krevNett();
   return clone(week);
 }
 
@@ -234,6 +246,7 @@ function applyPending(pending: readonly PendingItem[]): void {
 }
 
 export async function addMealsToList(meals: readonly Meal[]): Promise<PendingItem[]> {
+  krevNett();
   const pending = itemsFromMeals(meals);
   applyPending(pending);
   return pending;
@@ -245,6 +258,7 @@ export async function addManualItem(input: {
   unit: string;
   category: Category;
 }): Promise<void> {
+  krevNett();
   const name = input.name.trim();
   if (name === '') return;
   const quantities: Quantity[] =
@@ -255,6 +269,7 @@ export async function addManualItem(input: {
 }
 
 export async function setChecked(itemId: string, checked: boolean): Promise<void> {
+  krevNett();
   const found = items.find((item) => item.id === itemId);
   if (found !== undefined) found.checked = checked;
   notify();
@@ -270,22 +285,26 @@ function archive(item: ShoppingItem): void {
 }
 
 export async function removeItem(itemId: string): Promise<void> {
+  krevNett();
   const found = items.find((item) => item.id === itemId);
   if (found !== undefined) archive(found);
   notify();
 }
 
 export async function removeCheckedItems(): Promise<void> {
+  krevNett();
   for (const item of items) if (item.checked) archive(item);
   notify();
 }
 
 export async function clearList(): Promise<void> {
+  krevNett();
   for (const item of items) if (!item.archived) archive(item);
   notify();
 }
 
 export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]): Promise<void> {
+  krevNett();
   const found = items.find((row) => row.id === item.id);
   if (found !== undefined) {
     found.archived = false;
@@ -299,22 +318,26 @@ export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]
 }
 
 export async function forgetItem(itemId: string): Promise<void> {
+  krevNett();
   items = items.filter((item) => item.id !== itemId);
   notify();
 }
 
-export async function addMealToWeek(mealId: string): Promise<void> {
+export async function addMealToWeek(mealId: string, entryId?: string): Promise<void> {
+  krevNett();
   if (week.some((entry) => entry.meal_id === mealId)) return;
-  week.push({ id: id(), meal_id: mealId, added_to_list: false });
+  week.push({ id: entryId ?? id(), meal_id: mealId, added_to_list: false });
   notify();
 }
 
 export async function removeMealFromWeek(mealId: string): Promise<void> {
+  krevNett();
   week = week.filter((entry) => entry.meal_id !== mealId);
   notify();
 }
 
 export async function markWeekMealsAdded(mealIds: readonly string[]): Promise<void> {
+  krevNett();
   for (const entry of week) {
     if (mealIds.includes(entry.meal_id)) entry.added_to_list = true;
   }
@@ -322,11 +345,13 @@ export async function markWeekMealsAdded(mealIds: readonly string[]): Promise<vo
 }
 
 export async function clearWeek(): Promise<void> {
+  krevNett();
   week = [];
   notify();
 }
 
 export async function restoreWeek(entries: readonly WeekPlanItem[]): Promise<void> {
+  krevNett();
   week = entries.map((entry) => ({ ...entry }));
   notify();
 }
@@ -375,6 +400,7 @@ export async function updateItem(
   item: ShoppingItem,
   patch: { name: string; category: Category; quantities: Quantity[] },
 ): Promise<void> {
+  krevNett();
   const name = patch.name.trim();
   if (name === '') throw new Error('Varen må ha et navn');
   const key = normalizeName(name);
@@ -394,6 +420,7 @@ export async function updateItem(
 }
 
 export async function restoreItems(restored: readonly ShoppingItem[]): Promise<void> {
+  krevNett();
   for (const item of restored) {
     const index = items.findIndex((row) => row.id === item.id);
     if (index === -1) items.push({ ...item });
@@ -407,6 +434,7 @@ export async function fetchAliases(): Promise<{ alias: string; canonical: string
 }
 
 export async function addAlias(alias: string, canonical: string): Promise<void> {
+  krevNett();
   const from = alias.trim();
   const to = canonical.trim();
   if (from === '' || to === '') throw new Error('Begge feltene må fylles ut');
@@ -415,11 +443,13 @@ export async function addAlias(alias: string, canonical: string): Promise<void> 
 }
 
 export async function removeAlias(alias: string): Promise<void> {
+  krevNett();
   aliases = aliases.filter((row) => row.alias !== alias);
   notify();
 }
 
 export async function saveMeal(draft: MealDraft): Promise<string> {
+  krevNett();
   const name = draft.name.trim();
   if (name === '') throw new Error('Middagen må ha et navn');
   if (MEALS.some((m) => m.id !== draft.id && m.name === name)) {
@@ -448,6 +478,7 @@ export async function saveMeal(draft: MealDraft): Promise<string> {
 }
 
 export async function deleteMeal(mealId: string): Promise<void> {
+  krevNett();
   MEALS = MEALS.filter((m) => m.id !== mealId);
   week = week.filter((entry) => entry.meal_id !== mealId);
   notify();
@@ -458,3 +489,48 @@ export async function deleteMeal(mealId: string): Promise<void> {
   const found = items.find((row) => row.name === varenavn);
   if (found !== undefined) found.version += 1;
 };
+
+// --- Speiler de id-baserte variantene i db.ts, som offline-køen bruker ---
+
+export async function fetchAllItemsForCache(): Promise<ShoppingItem[]> {
+  krevNett();
+  return clone(items);
+}
+
+export async function applyPendingItems(
+  pending: readonly PendingItem[],
+  newIds: readonly string[] = [],
+): Promise<void> {
+  krevNett();
+  const before = items.length;
+  applyPending(pending);
+  // Id-ene fra telefonen skal følge med, så en vare lagt til offline peker
+  // på samme rad etterpå.
+  items.slice(before).forEach((item, index) => {
+    const id = newIds[index];
+    if (id !== undefined) item.id = id;
+  });
+}
+
+export async function archiveItems(ids: readonly string[]): Promise<void> {
+  krevNett();
+  for (const item of items) if (ids.includes(item.id)) archive(item);
+  notify();
+}
+
+export async function reviveItem(itemId: string, quantities: Quantity[]): Promise<void> {
+  krevNett();
+  const found = items.find((row) => row.id === itemId);
+  if (found === undefined) return;
+  await addFromRegister(found, quantities);
+}
+
+export async function updateItemById(
+  itemId: string,
+  patch: { name: string; category: Category; quantities: Quantity[] },
+): Promise<void> {
+  krevNett();
+  const found = items.find((row) => row.id === itemId);
+  if (found === undefined) return;
+  await updateItem(found, patch);
+}

@@ -13,8 +13,11 @@ export default defineConfig({
     alias: useMock
       ? [
           {
-            // Streng, ikke regex: Vite bytter hele id-en bare ved eksakt treff.
-            find: './lib/db.ts',
+            // Må treffe begge skrivemåtene: main.ts importerer './lib/db.ts',
+            // mens filene i src/lib/ importerer './db.ts'. Regexen er ankret i
+            // begge ender, så hele id-en byttes ut — treffer den bare en del
+            // av strengen, blir resultatet en sti som ikke finnes.
+            find: /^\.{1,2}\/(?:lib\/)?db\.ts$/,
             replacement: fileURLToPath(new URL('./src/lib/db.mock.ts', import.meta.url)),
           },
         ]

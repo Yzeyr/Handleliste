@@ -1,5 +1,7 @@
 import { el, replaceChildren } from './dom.ts';
 import * as db from './lib/db.ts';
+import * as store from './lib/offlineStore.ts';
+import { itemsFromMeals } from './lib/merge.ts';
 import { isCategory, type Meal, type MealDraft, type Quantity, type ShoppingItem } from './lib/types.ts';
 import type { Actions, AppState } from './state.ts';
 import { createListView } from './views/list.ts';
@@ -7,7 +9,9 @@ import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
 import { createMealEditor } from './views/mealEditor.ts';
-import { setRuntimeAliases } from './lib/normalize.ts';
+import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
+import { normalizeUnit } from './lib/units.ts';
+import type { Intent } from './lib/intent.ts';
 import { createSetupView } from './views/setup.ts';
 import { applyShareLink, clearConfig, deviceName, isConfigFixed, lastSeenAt, markSeenNow } from './lib/config.ts';
 import { describeChange, summarizeChanges, type ChangeEvent } from './lib/changes.ts';
@@ -28,6 +32,16 @@ if (root === null) throw new Error('Fant ikke #app');
 
 // En delingslenke fra den andre telefonen setter opp appen før noe annet.
 applyShareLink();
+
+// Service worker: appen skal laste uten nett. Registreres etter at siden er
+// oppe, så den ikke konkurrerer med første tegning. Feiler den — for eksempel
+// fordi siden kjøres fra file:// — er det ikke noe å gjøre med, og appen
+// virker fortsatt så lenge det er nett.
+if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('sw.js').catch(() => undefined);
+  });
+}
 boot(root);
 
 function boot(container: HTMLElement): void {
@@ -52,86 +66,114 @@ async function start(container: HTMLElement): Promise<void> {
 
   const actions: Actions = {
     addManual: (input) =>
-      run(() =>
-        db.addManualItem({
-          name: input.name,
-          amount: input.amount,
-          unit: input.unit,
-          category: isCategory(input.category) ? input.category : 'annet',
-        }),
-      ),
-    toggleChecked: (item: ShoppingItem) => run(() => db.setChecked(item.id, !item.checked)),
+      queue(() => {
+        const name = input.name.trim();
+        if (name === '') return null;
+        const quantities =
+          input.amount === null ? [] : [{ amount: input.amount, unit: normalizeUnit(input.unit) }];
+        return {
+          kind: 'addPending',
+          pending: [
+            {
+              normalizedName: normalizeName(name),
+              name,
+              quantities,
+              category: isCategory(input.category) ? input.category : 'annet',
+              sourceMeals: [],
+            },
+          ],
+          newIds: [crypto.randomUUID()],
+          mealIds: [],
+        };
+      }),
+    toggleChecked: (item: ShoppingItem) =>
+      queue(() => ({ kind: 'setChecked', id: item.id, checked: !item.checked })),
     removeItem: (item: ShoppingItem) =>
-      runUndoable(`${item.name} fjernet`, () => db.removeItem(item.id), () => db.restoreItems([item])),
+      queueUndoable(`${item.name} fjernet`, { kind: 'archive', ids: [item.id] }, [item]),
     removeChecked: () => {
       const affected = state.items.filter((item) => item.checked);
-      runUndoable(
-        affected.length === 1 ? `1 vare fjernet` : `${affected.length} varer fjernet`,
-        () => db.removeCheckedItems(),
-        () => db.restoreItems(affected),
+      if (affected.length === 0) return;
+      queueUndoable(
+        affected.length === 1 ? '1 vare fjernet' : `${affected.length} varer fjernet`,
+        { kind: 'archive', ids: affected.map((item) => item.id) },
+        affected,
       );
     },
     addFromRegister: (item: ShoppingItem, quantities: Quantity[]) =>
-      run(() => db.addFromRegister(item, quantities)),
+      queue(() => ({ kind: 'revive', id: item.id, quantities })),
     forgetItem: (item: ShoppingItem) =>
-      runUndoable(`${item.name} slettet`, () => db.forgetItem(item.id), () => db.restoreItems([item])),
+      queueUndoable(`${item.name} slettet`, { kind: 'forget', id: item.id }, [item]),
     clearList: () => {
       const affected = [...state.items];
       if (affected.length === 0) return;
-      runUndoable('Lista tømt', () => db.clearList(), () => db.restoreItems(affected));
+      queueUndoable('Lista tømt', { kind: 'archive', ids: affected.map((item) => item.id) }, affected);
     },
     toggleWeekMeal: (meal: Meal) => {
       const inWeek = state.week.some((entry) => entry.meal_id === meal.id);
-      run(() => (inWeek ? db.removeMealFromWeek(meal.id) : db.addMealToWeek(meal.id)));
+      queue(() =>
+        inWeek
+          ? { kind: 'weekRemove', mealId: meal.id }
+          : { kind: 'weekAdd', mealId: meal.id, id: crypto.randomUUID() },
+      );
     },
-    addWeekToList: () =>
-      run(async () => {
-        const byId = new Map(state.meals.map((meal) => [meal.id, meal]));
-        const pending = state.week
-          .filter((entry) => !entry.added_to_list)
-          .map((entry) => byId.get(entry.meal_id))
-          .filter((meal): meal is Meal => meal !== undefined);
-        if (pending.length === 0) return;
+    addWeekToList: () => {
+      const byId = new Map(state.meals.map((meal) => [meal.id, meal]));
+      const chosen = state.week
+        .filter((entry) => !entry.added_to_list)
+        .map((entry) => byId.get(entry.meal_id))
+        .filter((meal): meal is Meal => meal !== undefined);
+      if (chosen.length === 0) return;
 
-        const added = await db.addMealsToList(pending);
-        await db.markWeekMealsAdded(pending.map((meal) => meal.id));
-        setTab('liste');
-        showStatus(`${added.length} varer lagt til fra ${pending.length} middager`);
-      }),
+      const pending = itemsFromMeals(chosen);
+      queue(() => ({
+        kind: 'addPending',
+        pending,
+        newIds: pending.map(() => crypto.randomUUID()),
+        mealIds: chosen.map((meal) => meal.id),
+      }));
+      setTab('liste');
+      showStatus(`${pending.length} varer lagt til fra ${chosen.length} middager`);
+    },
     clearWeek: () => {
       const affected = [...state.week];
       if (affected.length === 0) return;
-      runUndoable('Ukemenyen tømt', () => db.clearWeek(), () => db.restoreWeek(affected));
+      queueUndoable('Ukemenyen tømt', { kind: 'weekSet', entries: [] }, [], {
+        kind: 'weekSet',
+        entries: affected,
+      });
     },
-    editItem: (item, patch) =>
-      run(async () => {
-        await db.updateItem(item, patch);
-        setTab(tab);
-      }),
+    editItem: (item, patch) => queue(() => ({ kind: 'edit', id: item.id, patch })),
     addAlias: (alias: string, canonical: string) =>
       run(async () => {
+        if (!store.isOnline()) throw new Error('Synonymer kan bare endres når du har nett');
         await db.addAlias(alias, canonical);
         await refreshAliases();
         showSettings();
       }),
     removeAlias: (alias: string) =>
       run(async () => {
+        if (!store.isOnline()) throw new Error('Synonymer kan bare endres når du har nett');
         await db.removeAlias(alias);
         await refreshAliases();
         showSettings();
       }),
     editMeal: (meal: Meal | null) => showMealEditor(meal),
+    // Oppskrifter og synonymer legges ikke i offline-køen. De endres sjelden,
+    // og aldri midt i en butikk — å si det rett ut er bedre enn å late som
+    // det gikk og så sende det senere.
     saveMeal: (draft: MealDraft) =>
       run(async () => {
+        if (!store.isOnline()) throw new Error('Middager kan bare endres når du har nett');
         await db.saveMeal(draft);
-        state.meals = await db.fetchMeals();
+        await store.refreshMeals();
         setTab('middager');
         showStatus('Middagen er lagret');
       }),
     deleteMeal: (meal: Meal) =>
       run(async () => {
+        if (!store.isOnline()) throw new Error('Middager kan bare endres når du har nett');
         await db.deleteMeal(meal.id);
-        state.meals = await db.fetchMeals();
+        await store.refreshMeals();
         setTab('middager');
         showStatus(`${meal.name} slettet`);
       }),
@@ -146,6 +188,7 @@ async function start(container: HTMLElement): Promise<void> {
   } as const;
 
   const status = el('div', { class: 'status', attrs: { role: 'status' } });
+  const connection = el('div', { class: 'connection', attrs: { role: 'status' } });
   const toast = el('div', { class: 'toast', attrs: { role: 'status', 'aria-live': 'polite' } });
 
   // Frosset ved oppstart: alt som er endret av den andre etter dette
@@ -172,6 +215,7 @@ async function start(container: HTMLElement): Promise<void> {
       status,
       settingsButton,
     ]),
+    connection,
     content,
     toast,
     tabBar,
@@ -198,23 +242,32 @@ async function start(container: HTMLElement): Promise<void> {
   let pending: string[] = [];
 
   /**
-   * Kjører noe som kan angres. Radene fra før handlingen holdes på til
-   * varselet forsvinner; trykker du «Angre» skrives de tilbake.
+   * Legger en handling i køen: skrives lokalt med en gang, sendes når det er
+   * nett. Det er dette som gjør at appen virker i en butikk uten dekning.
    */
-  function runUndoable(
+  function queue(build: () => Intent | null): void {
+    try {
+      const intent = build();
+      if (intent === null) return;
+      store.apply(intent);
+      readFromStore();
+    } catch (error) {
+      showStatus(error instanceof Error ? error.message : 'Noe gikk galt', true);
+    }
+  }
+
+  /** Som `queue`, men med en angre-knapp i noen sekunder etterpå. */
+  function queueUndoable(
     label: string,
-    action: () => Promise<unknown>,
-    undo: () => Promise<unknown>,
+    intent: Intent,
+    affected: ShoppingItem[],
+    undoIntent?: Intent,
   ): void {
-    void (async () => {
-      try {
-        await action();
-        await reload();
-        offerUndo(label, undo);
-      } catch (error) {
-        showStatus(error instanceof Error ? error.message : 'Noe gikk galt', true);
-      }
-    })();
+    queue(() => intent);
+    offerUndo(label, async () => {
+      store.apply(undoIntent ?? { kind: 'restore', items: affected });
+      readFromStore();
+    });
   }
 
   function offerUndo(label: string, undo: () => Promise<unknown>): void {
@@ -293,14 +346,48 @@ async function start(container: HTMLElement): Promise<void> {
     content.scrollTo({ top: 0 });
   }
 
-  /** Synonymene må inn i normalizeName før noe slås sammen. */
+  /**
+   * Synonymene må inn i normalizeName før noe slås sammen. De ligger lagret
+   * på telefonen også, så sammenslåingen blir den samme uten nett.
+   */
+  function useAliases(list: { alias: string; canonical: string }[]): void {
+    state.aliases = list;
+    setRuntimeAliases(list);
+  }
+
   async function refreshAliases(): Promise<void> {
-    state.aliases = await db.fetchAliases();
-    setRuntimeAliases(state.aliases);
+    useAliases(await store.refreshAliases());
   }
 
   function refreshView(): void {
     views[tab].update(state);
+  }
+
+  /** Fyller skjermtilstanden fra den lokale kopien. Ingen nettverk her. */
+  function readFromStore(): void {
+    state.items = store.listItems();
+    state.register = store.registerItems();
+    state.week = store.weekItems();
+    state.meals = store.allMeals();
+    state.unseen = unseenIds();
+    markSeenNow();
+    showConnection();
+    refreshView();
+  }
+
+  function showConnection(): void {
+    const info = store.status();
+    connection.classList.toggle('visible', !info.online || info.queued > 0);
+    if (!info.online) {
+      connection.textContent =
+        info.queued > 0
+          ? `Uten nett — ${store.pendingSummary()}`
+          : 'Uten nett. Lista er den du så sist, og endringer sendes når nettet er tilbake.';
+    } else if (info.queued > 0) {
+      connection.textContent = store.pendingSummary() ?? '';
+    } else {
+      connection.textContent = '';
+    }
   }
 
   /** Varer den andre har rørt siden forrige gang appen var åpen her. */
@@ -331,29 +418,44 @@ async function start(container: HTMLElement): Promise<void> {
   }
 
   async function reload(): Promise<void> {
-    const [items, week, register] = await Promise.all([
-      db.fetchList(),
-      db.fetchWeekPlan(),
-      db.fetchRegister(),
-    ]);
-    state.items = items;
-    state.week = week;
-    state.register = register;
-    state.unseen = unseenIds();
-    markSeenNow();
-    refreshView();
+    try {
+      await store.refreshFromServer();
+    } catch (error) {
+      // Uten nett er den lokale kopien det vi har, og den er allerede tegnet.
+      if (store.isOnline()) throw error;
+    }
+    readFromStore();
   }
 
+  // Fra telefonen først: lista er på skjermen før noe nettverk er forsøkt.
+  store.loadFromDevice();
+  store.watchConnection();
+  store.subscribe(readFromStore);
   setTab('liste');
-  // Et tregt eller feil prosjekt bruker flere sekunder på å feile (klienten
-  // prøver på nytt et par ganger), så det må synes at noe skjer.
-  showStatus('Kobler til …');
+  readFromStore();
 
+  useAliases(store.allAliases());
+
+  const hadNothing = state.items.length === 0 && state.meals.length === 0;
+  if (hadNothing) showStatus('Kobler til …');
+
+  // Synonymene er greie å ha, men ingen grunn til å stoppe oppstarten for.
   try {
     await refreshAliases();
-    state.meals = await db.fetchMeals();
-    await reload();
+  } catch {
+    /* beholder de lagrede */
+  }
+
+  try {
+    await store.refreshFromServer({ meals: true });
+    await store.flush();
+    readFromStore();
   } catch (error) {
+    readFromStore();
+    // Har vi noe lagret fra sist, er det bedre å vise det enn en feilskjerm.
+    // Banneret sier allerede at vi er uten nett. Feilskjermen er bare riktig
+    // når vi står helt tomme og problemet ikke er dekningen.
+    if (!hadNothing || !store.isOnline()) return;
     showStatus(error instanceof Error ? error.message : 'Klarte ikke å hente data', true);
     replaceChildren(content, [
       el('section', { class: 'view' }, [

@@ -201,6 +201,9 @@ src/lib/merge.test.ts  tester av det over
 src/lib/changes.ts     endring -> setning ("Kari handlet Melk"), ren
 src/lib/changes.test.ts tester av det over
 src/lib/db.ts          Supabase-kall og realtime
+src/lib/localStore.ts  lista i minnet; brukes av offline-laget og av mock
+src/lib/intent.ts      en handling beskrevet så den kan utføres senere
+src/lib/offlineStore.ts lokal kopi + kø + synkronisering
 src/lib/db.mock.ts     samme API i minnet, for npm run dev:mock
 src/views/             liste, middager, uke, varer, middagsredigering
 ```
@@ -235,6 +238,36 @@ Navnene i registeret foreslås også mens du skriver i «Legg til vare».
 
 «Slett fra varene» sletter for godt. Det er det eneste stedet i appen noe
 faktisk fjernes fra databasen.
+
+## Uten nett
+
+Butikker har dårlig dekning, og det du gjør i en butikk er å hake av. Derfor
+er appen bygget lokalt først:
+
+1. Alt som vises kommer fra en kopi i `localStorage`. Lista er på skjermen
+   før noe nettverk er forsøkt — også når det ikke er noe nett.
+2. Hver handling skrives til kopien først, og legges i en kø.
+3. Køen sendes når det er nett igjen. Hver handling **utføres på nytt** mot
+   lista slik den faktisk er da, gjennom de samme funksjonene som en vanlig
+   handling. «Legg til 3 dl melk» slår seg altså sammen med det den andre
+   telefonen rakk å legge inn — den overskriver ikke.
+4. Så lenge køen har noe i seg, er den lokale kopien fasit. Først når køen er
+   tom lar vi serveren overskrive den. Uten den regelen ville en oppfriskning
+   kunne slette noe du nettopp gjorde offline.
+
+Id-er lages på telefonen, ikke av databasen, slik at en vare du la til uten
+nett peker på samme rad når køen sendes.
+
+En handling som feiler fordi nettet er borte blir stående i køen. En som
+feiler fordi databasen sier nei, kastes — ellers ville køen stått fast for
+alltid på noe som aldri kommer til å gå. `sw.js` gjør at selve appen laster
+uten nett (nett først, telefonen som reserve).
+
+**Ikke i køen:** oppskrifter og synonymer. De endres sjelden, og aldri midt i
+en butikk; appen sier fra at det krever nett i stedet for å late som det gikk.
+Og to telefoner som endrer *samme* rad hver for seg mens begge er offline —
+den som sendes sist vinner for felter som avhuking. Mengder slås sammen, så
+der er begge med.
 
 ## Realtime og varsler
 

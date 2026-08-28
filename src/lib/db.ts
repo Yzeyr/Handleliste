@@ -68,6 +68,10 @@ export async function fetchRegister(): Promise<ShoppingItem[]> {
 }
 
 /** Alt, arkivert eller ikke — sammenslåing må se de arkiverte radene også. */
+export async function fetchAllItemsForCache(): Promise<ShoppingItem[]> {
+  return fetchAllItems();
+}
+
 async function fetchAllItems(): Promise<ShoppingItem[]> {
   const { data, error } = await sb().from(LIST).select('*');
   fail('Klarte ikke å hente handlelista', error);
@@ -123,7 +127,17 @@ function insertPayload(pending: PendingItem): Record<string, unknown> {
  * huket av igjen: trenger dere mer av noe dere alt har krysset ut, må det
  * synes at det står igjen å handle.
  */
-async function applyPending(pending: readonly PendingItem[]): Promise<void> {
+export async function applyPendingItems(
+  pending: readonly PendingItem[],
+  newIds: readonly string[] = [],
+): Promise<void> {
+  return applyPending(pending, newIds);
+}
+
+async function applyPending(
+  pending: readonly PendingItem[],
+  newIds: readonly string[] = [],
+): Promise<void> {
   // Sammenlign-og-bytt. Sammenslåingen regnes ut i klienten, så mellom lesing
   // og skriving kan den andre telefonen ha rukket å endre raden. Da treffer
   // oppdateringen ingen rader — fordi versjonen ikke stemmer lenger — og vi
@@ -151,7 +165,16 @@ async function applyPending(pending: readonly PendingItem[]): Promise<void> {
     }
 
     if (inserts.length > 0) {
-      const { error } = await sb().from(LIST).insert(inserts.map(insertPayload));
+      const positions = new Map(pending.map((item, index) => [item.normalizedName, index]));
+      const { error } = await sb()
+        .from(LIST)
+        .insert(
+          inserts.map((insert) => {
+            const index = positions.get(insert.normalizedName);
+            const id = index === undefined ? undefined : newIds[index];
+            return id === undefined ? insertPayload(insert) : { id, ...insertPayload(insert) };
+          }),
+        );
       // 23505: den unike indeksen slo til fordi noen andre satte inn samme
       // vare i mellomtiden. Neste runde finner raden og slår sammen mot den.
       if (error !== null && error.code === '23505') retry.push(...inserts);
@@ -217,7 +240,13 @@ function archivePatch(): Record<string, unknown> {
 }
 
 export async function removeItem(id: string): Promise<void> {
-  const { error } = await sb().from(LIST).update(archivePatch()).eq('id', id);
+  return archiveItems([id]);
+}
+
+/** Arkiverer et sett varer. Køen lagrer id-er, ikke hele rader. */
+export async function archiveItems(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await sb().from(LIST).update(archivePatch()).in('id', [...ids]);
   fail('Klarte ikke å fjerne varen', error);
 }
 
@@ -237,11 +266,19 @@ export async function clearList(): Promise<void> {
 
 /** Legger en vare fra registeret på lista, med den mengden som ble valgt. */
 export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]): Promise<void> {
-  const { error } = await sb()
+  return reviveItem(item.id, quantities);
+}
+
+export async function reviveItem(id: string, quantities: Quantity[]): Promise<void> {
+  const { data, error } = await sb().from(LIST).select('*').eq('id', id).maybeSingle();
+  fail('Klarte ikke å hente varen', error);
+  if (data === null) return;
+  const item = data as ShoppingItem;
+  const { error: updateError } = await sb()
     .from(LIST)
     .update(revivePayload(item, quantities, []))
-    .eq('id', item.id);
-  fail(`Klarte ikke å legge til ${item.name}`, error);
+    .eq('id', id);
+  fail(`Klarte ikke å legge til ${item.name}`, updateError);
 }
 
 /** Sletter en vare for godt. Det eneste stedet noe faktisk fjernes. */
@@ -254,8 +291,10 @@ export async function forgetItem(id: string): Promise<void> {
 // Ukemeny
 // ---------------------------------------------------------------------------
 
-export async function addMealToWeek(mealId: string): Promise<void> {
-  const { error } = await sb().from('week_plan_items').insert({ meal_id: mealId });
+export async function addMealToWeek(mealId: string, id?: string): Promise<void> {
+  const row: Record<string, string> = { meal_id: mealId };
+  if (id !== undefined) row.id = id;
+  const { error } = await sb().from('week_plan_items').insert(row);
   if (error !== null && error.code === '23505') return; // alt i menyen
   fail('Klarte ikke å legge middagen i ukemenyen', error);
 }
@@ -334,6 +373,13 @@ export async function updateItem(
   item: ShoppingItem,
   patch: { name: string; category: Category; quantities: Quantity[] },
 ): Promise<void> {
+  return updateItemById(item.id, patch);
+}
+
+export async function updateItemById(
+  id: string,
+  patch: { name: string; category: Category; quantities: Quantity[] },
+): Promise<void> {
   const name = patch.name.trim();
   if (name === '') throw new Error('Varen må ha et navn');
 
@@ -346,7 +392,7 @@ export async function updateItem(
       quantities: patch.quantities,
       updated_by: deviceName(),
     })
-    .eq('id', item.id);
+    .eq('id', id);
 
   // Den unike indeksen: navnet peker nå på en vare som allerede finnes.
   // Å slå dem sammen her ville vært å gjette; be heller om et annet navn.
