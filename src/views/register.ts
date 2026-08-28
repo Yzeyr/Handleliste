@@ -1,5 +1,6 @@
 import { el, replaceChildren, type View } from '../dom.ts';
-import type { Quantity, ShoppingItem } from '../lib/types.ts';
+import type { Meal, Quantity, ShoppingItem } from '../lib/types.ts';
+import { describeLastBought, mealsUsing } from '../lib/facts.ts';
 import { formatAmount, formatQuantities, normalizeUnit } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
@@ -63,7 +64,7 @@ export function createRegisterView(actions: Actions): View<AppState> {
         'ul',
         { class: 'items' },
         matches.map((item) =>
-          renderRow(item, open.has(item.id), actions, () => {
+          renderRow(item, current.meals, open.has(item.id), actions, () => {
             if (open.has(item.id)) open.delete(item.id);
             else open.add(item.id);
             render();
@@ -91,6 +92,7 @@ function lastQuantity(item: ShoppingItem): { amount: string; unit: string } {
 
 function renderRow(
   item: ShoppingItem,
+  meals: readonly Meal[],
   isOpen: boolean,
   actions: Actions,
   toggleOpen: () => void,
@@ -130,8 +132,21 @@ function renderRow(
     return [{ amount, unit: normalizeUnit(unitInput.value) }];
   }
 
+  const sist = describeLastBought(item.last_used_at);
+  const brukesI = mealsUsing(item, meals);
+
   const details = isOpen
     ? el('div', { class: 'register-details' }, [
+        // Bare det appen vet sikkert, og bare det som ikke allerede står i
+        // raden over — mengden og antall ganger er synlige der.
+        // Ingen «du burde kjøpe denne nå».
+        (sist !== null || brukesI.length > 0) &&
+          el('dl', { class: 'facts' }, [
+            sist !== null && el('dt', { text: 'Sist kjøpt' }),
+            sist !== null && el('dd', { text: sist }),
+            brukesI.length > 0 && el('dt', { text: 'Brukes i' }),
+            brukesI.length > 0 && el('dd', { text: brukesI.join(', ') }),
+          ]),
         el('div', { class: 'row' }, [
           amountInput,
           unitInput,

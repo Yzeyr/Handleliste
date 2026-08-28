@@ -199,6 +199,7 @@ src/lib/units.ts       enheter, omregning, visningsformat
 src/lib/merge.ts       all sammenslåingslogikk (ren, uten database)
 src/lib/merge.test.ts  tester av det over
 src/lib/changes.ts     endring -> setning ("Kari handlet Melk"), ren
+src/lib/facts.ts       det appen vet sikkert om en vare, rent og testet
 src/lib/changes.test.ts tester av det over
 src/lib/db.ts          Supabase-kall og realtime
 src/lib/localStore.ts  lista i minnet; brukes av offline-laget og av mock
@@ -254,6 +255,15 @@ skjer fra historikken, fra en middag eller ved å skrive den inn for hånd. Det
 kan ikke oppstå en arkivert og en aktiv rad for samme vare. Dekket av test.
 
 Navnene i registeret foreslås også mens du skriver i «Legg til vare».
+
+Åpner du en rad, står det også **hva appen vet sikkert** om varen: når den
+sist ble kjøpt, og hvilke middager den brukes i. «Brukes i» regnes ut fra
+oppskriftene slik de er nå, ikke lagret noe sted, så den stemmer med
+synonymer og middager dere har endret siden sist.
+
+Bevisst bare fakta. «Kjøpt 8 ganger, sist 21. aug» blir mer nyttig jo lenger
+dere bruker appen; «du burde kjøpe denne nå» må treffe nesten hver gang for
+å være annet enn støy, og gjør det ikke.
 
 «Slett fra varene» sletter for godt. Det er det eneste stedet i appen noe
 faktisk fjernes fra databasen.
