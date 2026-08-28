@@ -20,8 +20,17 @@ const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks
 export function createListView(actions: Actions): View<AppState> {
   const nameInput = el('input', {
     class: 'grow',
-    attrs: { type: 'text', placeholder: 'Legg til vare', 'aria-label': 'Varenavn', autocomplete: 'off' },
+    attrs: {
+      type: 'text',
+      placeholder: 'Legg til vare',
+      'aria-label': 'Varenavn',
+      autocomplete: 'off',
+      list: 'tidligere-varer',
+    },
   });
+  // Forslag fra historikken mens man skriver — den vanligste måten å hente
+  // fram en gammel vare på, uten å bytte fane.
+  const nameOptions = el('datalist', { attrs: { id: 'tidligere-varer' } });
   const amountInput = el('input', {
     class: 'amount',
     attrs: { type: 'number', inputmode: 'decimal', step: 'any', min: '0', placeholder: 'Antall', 'aria-label': 'Mengde' },
@@ -85,6 +94,7 @@ export function createListView(actions: Actions): View<AppState> {
       el('div', { class: 'row' }, [nameInput, el('button', { class: 'primary', text: 'Legg til', attrs: { type: 'submit' } })]),
       details,
       unitOptions,
+      nameOptions,
     ],
   );
 
@@ -93,6 +103,11 @@ export function createListView(actions: Actions): View<AppState> {
   const element = el('section', { class: 'view' }, [form, body, footer]);
 
   function update(state: AppState): void {
+    replaceChildren(
+      nameOptions,
+      state.history.map((item) => el('option', { attrs: { value: item.name } })),
+    );
+
     const groups = GROUP_ORDER.map((category) => ({
       category,
       items: state.items

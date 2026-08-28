@@ -152,7 +152,15 @@ export async function fetchMeals(): Promise<Meal[]> {
 }
 
 export async function fetchList(): Promise<ShoppingItem[]> {
-  return clone(items);
+  return clone(items.filter((item) => !item.archived));
+}
+
+export async function fetchHistory(): Promise<ShoppingItem[]> {
+  return clone(
+    items
+      .filter((item) => item.archived)
+      .sort((a, b) => b.use_count - a.use_count || b.last_used_at.localeCompare(a.last_used_at)),
+  );
 }
 
 export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
@@ -165,6 +173,9 @@ function applyPending(pending: readonly PendingItem[]): void {
     update.item.quantities = update.quantities;
     update.item.source_meals = update.sourceMeals;
     update.item.checked = false;
+    if (update.item.archived) update.item.use_count += 1;
+    update.item.archived = false;
+    update.item.last_used_at = new Date().toISOString();
   }
   const now = new Date().toISOString();
   for (const insert of inserts) {
@@ -175,6 +186,9 @@ function applyPending(pending: readonly PendingItem[]): void {
       quantities: insert.quantities,
       category: insert.category,
       checked: false,
+      archived: false,
+      use_count: 1,
+      last_used_at: now,
       source_meals: insert.sourceMeals,
       note: null,
       created_at: now,
@@ -211,18 +225,45 @@ export async function setChecked(itemId: string, checked: boolean): Promise<void
   notify();
 }
 
+function archive(item: ShoppingItem): void {
+  item.archived = true;
+  item.checked = false;
+  item.quantities = [];
+  item.source_meals = [];
+  item.last_used_at = new Date().toISOString();
+}
+
 export async function removeItem(itemId: string): Promise<void> {
-  items = items.filter((item) => item.id !== itemId);
+  const found = items.find((item) => item.id === itemId);
+  if (found !== undefined) archive(found);
   notify();
 }
 
 export async function removeCheckedItems(): Promise<void> {
-  items = items.filter((item) => !item.checked);
+  for (const item of items) if (item.checked) archive(item);
   notify();
 }
 
 export async function clearList(): Promise<void> {
-  items = [];
+  for (const item of items) if (!item.archived) archive(item);
+  notify();
+}
+
+export async function addFromHistory(item: ShoppingItem): Promise<void> {
+  const found = items.find((row) => row.id === item.id);
+  if (found !== undefined) {
+    found.archived = false;
+    found.checked = false;
+    found.quantities = [];
+    found.source_meals = [];
+    found.use_count += 1;
+    found.last_used_at = new Date().toISOString();
+  }
+  notify();
+}
+
+export async function forgetItem(itemId: string): Promise<void> {
+  items = items.filter((item) => item.id !== itemId);
   notify();
 }
 

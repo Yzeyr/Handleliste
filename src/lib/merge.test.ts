@@ -37,7 +37,12 @@ function meal(name: string, ingredients: MealIngredient[]): Meal {
   };
 }
 
-function listItem(name: string, quantities: Quantity[], sourceMeals: string[] = []): ShoppingItem {
+function listItem(
+  name: string,
+  quantities: Quantity[],
+  sourceMeals: string[] = [],
+  archived = false,
+): ShoppingItem {
   return {
     id: `id-${name}`,
     name,
@@ -45,6 +50,9 @@ function listItem(name: string, quantities: Quantity[], sourceMeals: string[] = 
     quantities,
     category: 'annet',
     checked: false,
+    archived,
+    use_count: 1,
+    last_used_at: '',
     source_meals: sourceMeals,
     note: null,
     created_at: '',
@@ -219,4 +227,14 @@ test('hele ukemenyen gir ingen duplikate linjer', () => {
   assert.equal(show(items.find((i) => i.normalizedName === 'helmelk')!.quantities), '1 l');
   assert.equal(show(items.find((i) => i.normalizedName === 'revet ost')!.quantities), '450 g');
   assert.equal(show(items.find((i) => i.normalizedName === 'kjottdeig')!.quantities), '800 g');
+});
+
+test('en arkivert vare vekkes til live i stedet for å bli duplisert', () => {
+  const arkivert = listItem('Helmelk', [], [], true);
+  const change = planListChange([arkivert], itemsFromMeals([meal('Lasagne', [ing('Helmelk', 5, 'dl')])]));
+
+  assert.equal(change.inserts.length, 0, 'skal ikke lage en ny rad ved siden av den arkiverte');
+  assert.equal(change.updates.length, 1);
+  assert.equal(change.updates[0]!.item.id, arkivert.id);
+  assert.equal(show(change.updates[0]!.quantities), '5 dl');
 });

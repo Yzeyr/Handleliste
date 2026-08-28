@@ -5,17 +5,19 @@ import type { Actions, AppState } from './state.ts';
 import { createListView } from './views/list.ts';
 import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
+import { createHistoryView } from './views/history.ts';
 import { createSetupView } from './views/setup.ts';
 import { applyShareLink, clearConfig, isConfigFixed } from './lib/config.ts';
 import { createSettingsButton, createSettingsView } from './views/settings.ts';
 import { resetClient } from './lib/supabase.ts';
 
-type TabId = 'liste' | 'middager' | 'uke';
+type TabId = 'liste' | 'middager' | 'uke' | 'historikk';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'liste', label: 'Liste' },
   { id: 'middager', label: 'Middager' },
   { id: 'uke', label: 'Uke' },
+  { id: 'historikk', label: 'Historikk' },
 ];
 
 const root = document.querySelector<HTMLDivElement>('#app');
@@ -42,7 +44,7 @@ function boot(container: HTMLElement): void {
 }
 
 async function start(container: HTMLElement): Promise<void> {
-  const state: AppState = { items: [], meals: [], week: [] };
+  const state: AppState = { items: [], meals: [], week: [], history: [] };
   let tab: TabId = 'liste';
 
   const actions: Actions = {
@@ -58,6 +60,11 @@ async function start(container: HTMLElement): Promise<void> {
     toggleChecked: (item: ShoppingItem) => run(() => db.setChecked(item.id, !item.checked)),
     removeItem: (item: ShoppingItem) => run(() => db.removeItem(item.id)),
     removeChecked: () => run(() => db.removeCheckedItems()),
+    addFromHistory: (item: ShoppingItem) => run(() => db.addFromHistory(item)),
+    forgetItem: (item: ShoppingItem) => {
+      if (!confirm(`Slette «${item.name}» fra historikken for godt?`)) return;
+      run(() => db.forgetItem(item.id));
+    },
     clearList: () => {
       if (!confirm('Tømme hele handlelista?')) return;
       run(() => db.clearList());
@@ -88,6 +95,7 @@ async function start(container: HTMLElement): Promise<void> {
     liste: createListView(actions),
     middager: createMealsView(actions),
     uke: createWeekView(actions),
+    historikk: createHistoryView(actions),
   } as const;
 
   const status = el('div', { class: 'status', attrs: { role: 'status' } });
@@ -172,9 +180,14 @@ async function start(container: HTMLElement): Promise<void> {
   }
 
   async function reload(): Promise<void> {
-    const [items, week] = await Promise.all([db.fetchList(), db.fetchWeekPlan()]);
+    const [items, week, history] = await Promise.all([
+      db.fetchList(),
+      db.fetchWeekPlan(),
+      db.fetchHistory(),
+    ]);
     state.items = items;
     state.week = week;
+    state.history = history;
     refreshView();
   }
 

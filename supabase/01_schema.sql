@@ -62,6 +62,12 @@ create table if not exists public.shopping_list_items (
   category         text not null default 'annet'
                    check (category in ('grønt','kjøtt','fisk','meieri','tørrvarer','frys','bakeri','annet')),
   checked          boolean not null default false,
+  -- Arkivert = har vært på lista, står ikke på den nå. Raden slettes ikke,
+  -- så den unike indeksen under holder fortsatt én rad per vare, og
+  -- historikken faller ut av det uten en egen tabell.
+  archived         boolean not null default false,
+  use_count        integer not null default 1,
+  last_used_at     timestamptz not null default now(),
   -- Hvilke middager linja kom fra, for visning: "fra Taco, Lasagne".
   -- Tom array = lagt inn manuelt.
   source_meals     text[] not null default '{}',
@@ -72,6 +78,10 @@ create table if not exists public.shopping_list_items (
 
 create unique index if not exists shopping_list_items_normalized_name_key
   on public.shopping_list_items (normalized_name);
+
+-- Historikken hentes som "arkiverte, mest brukte først".
+create index if not exists shopping_list_items_archived_idx
+  on public.shopping_list_items (archived, use_count desc, last_used_at desc);
 
 -- updated_at settes av databasen, ikke av klienten
 create or replace function public.touch_updated_at()

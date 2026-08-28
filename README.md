@@ -19,6 +19,8 @@ For ekte, delt liste:
 
 1. Lag et gratis prosjekt på [supabase.com](https://supabase.com).
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
+   Har du kjørt en eldre `setup.sql` fra før, kjør `supabase/03_history.sql`
+   i stedet — den legger bare til historikk-kolonnene.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -96,6 +98,9 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `quantities` | jsonb | `[{"amount":5,"unit":"dl"}]` |
 | `category` | text | butikk-seksjon |
 | `checked` | boolean | huket av i butikken; raden blir stående, bare gråtonet |
+| `archived` | boolean | har vært på lista, står ikke på den nå — dette er historikken |
+| `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
+| `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
 | `source_meals` | text[] | `{Lasagne,Fiskesuppe}` — vises som "fra Lasagne, Fiskesuppe". Tom = lagt inn manuelt |
 | `note` | text | fritekst, f.eks. "den billige" |
 | `created_at` / `updated_at` | timestamptz | `updated_at` settes av trigger |
@@ -175,6 +180,23 @@ src/lib/db.ts          Supabase-kall og realtime
 src/lib/db.mock.ts     samme API i minnet, for npm run dev:mock
 src/views/             liste, middager, uke
 ```
+
+## Historikk
+
+Varer slettes ikke når de fjernes fra lista — de settes `archived = true`,
+og mengde og middagsopphav nullstilles. Historikk-fanen er de radene, mest
+brukte først.
+
+Det fine med å gjenbruke raden i stedet for å ha en egen historikktabell: den
+unike indeksen på `normalized_name` gjelder fortsatt, så en arkivert
+«helmelk» blir *vekket til live* neste gang helmelk trengs — uansett om det
+skjer fra historikken, fra en middag eller ved å skrive den inn for hånd. Det
+kan ikke oppstå en arkivert og en aktiv rad for samme vare. Dekket av test.
+
+Navnene i historikken foreslås også mens du skriver i «Legg til vare».
+
+`×` i historikken sletter for godt. Det er det eneste stedet i appen noe
+faktisk fjernes fra databasen.
 
 ## Realtime
 

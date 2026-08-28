@@ -33,6 +33,11 @@ export interface ShoppingItem {
   quantities: Quantity[];
   category: Category;
   checked: boolean;
+  /** Har vært på lista, står ikke på den nå. Utgjør historikken. */
+  archived: boolean;
+  /** Hvor mange ganger varen har vært lagt på lista. Sorterer historikken. */
+  use_count: number;
+  last_used_at: string;
   source_meals: string[];
   note: string | null;
   created_at: string;

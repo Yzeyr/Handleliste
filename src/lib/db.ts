@@ -44,7 +44,30 @@ export async function fetchMeals(): Promise<Meal[]> {
 }
 
 export async function fetchList(): Promise<ShoppingItem[]> {
-  const { data, error } = await sb().from(LIST).select('*').order('created_at');
+  const { data, error } = await sb().from(LIST).select('*').eq('archived', false).order('created_at');
+  fail('Klarte ikke å hente handlelista', error);
+  return (data ?? []) as ShoppingItem[];
+}
+
+/**
+ * Historikken: varer som har vært på lista før, mest brukte først. Det er de
+ * samme radene som lista — de er bare arkivert i stedet for slettet.
+ */
+export async function fetchHistory(): Promise<ShoppingItem[]> {
+  const { data, error } = await sb()
+    .from(LIST)
+    .select('*')
+    .eq('archived', true)
+    .order('use_count', { ascending: false })
+    .order('last_used_at', { ascending: false })
+    .limit(200);
+  fail('Klarte ikke å hente historikken', error);
+  return (data ?? []) as ShoppingItem[];
+}
+
+/** Alt, arkivert eller ikke — sammenslåing må se de arkiverte radene også. */
+async function fetchAllItems(): Promise<ShoppingItem[]> {
+  const { data, error } = await sb().from(LIST).select('*');
   fail('Klarte ikke å hente handlelista', error);
   return (data ?? []) as ShoppingItem[];
 }
@@ -58,6 +81,26 @@ export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
 // ---------------------------------------------------------------------------
 // Skriving til handlelista
 // ---------------------------------------------------------------------------
+
+/**
+ * Feltene en eksisterende rad får når den legges på lista igjen. En arkivert
+ * rad hentes fram og teller én gang til; en rad som allerede står på lista
+ * teller ikke på nytt, den får bare mer mengde.
+ */
+function revivePayload(
+  item: ShoppingItem,
+  quantities: PendingItem['quantities'],
+  sourceMeals: string[],
+): Record<string, unknown> {
+  return {
+    quantities,
+    source_meals: sourceMeals,
+    checked: false,
+    archived: false,
+    use_count: item.archived ? item.use_count + 1 : item.use_count,
+    last_used_at: new Date().toISOString(),
+  };
+}
 
 function insertPayload(pending: PendingItem): Record<string, unknown> {
   return {
@@ -79,17 +122,16 @@ function insertPayload(pending: PendingItem): Record<string, unknown> {
 async function applyPending(pending: readonly PendingItem[]): Promise<void> {
   if (pending.length === 0) return;
 
-  const current = await fetchList();
+  // Arkiverte rader må være med: den unike indeksen gjør at en ny "helmelk"
+  // ikke kan settes inn ved siden av en arkivert "helmelk" — den skal vekkes
+  // til live igjen.
+  const current = await fetchAllItems();
   const { updates, inserts } = planListChange(current, pending);
 
   for (const update of updates) {
     const { error } = await sb()
       .from(LIST)
-      .update({
-        quantities: update.quantities,
-        source_meals: update.sourceMeals,
-        checked: false,
-      })
+      .update(revivePayload(update.item, update.quantities, update.sourceMeals))
       .eq('id', update.item.id);
     fail(`Klarte ikke å oppdatere ${update.item.name}`, error);
   }
@@ -99,11 +141,11 @@ async function applyPending(pending: readonly PendingItem[]): Promise<void> {
     // 23505 = brudd på den unike indeksen: noen andre la inn samme vare i
     // mellomtiden. Da er svaret å lese på nytt og slå sammen mot deres rad.
     if (error !== null && error.code === '23505') {
-      const retry = planListChange(await fetchList(), inserts);
+      const retry = planListChange(await fetchAllItems(), inserts);
       for (const update of retry.updates) {
         const { error: retryError } = await sb()
           .from(LIST)
-          .update({ quantities: update.quantities, source_meals: update.sourceMeals, checked: false })
+          .update(revivePayload(update.item, update.quantities, update.sourceMeals))
           .eq('id', update.item.id);
         fail(`Klarte ikke å oppdatere ${update.item.name}`, retryError);
       }
@@ -150,19 +192,54 @@ export async function setChecked(id: string, checked: boolean): Promise<void> {
   fail('Klarte ikke å hake av varen', error);
 }
 
+/**
+ * Å fjerne en vare arkiverer den i stedet for å slette den, slik at den blir
+ * liggende i historikken. Mengde og middagsopphav nullstilles — kommer varen
+ * tilbake, er det som en ny oppføring, ikke med gammel mengde hengende ved.
+ */
+const ARCHIVE_PATCH = {
+  archived: true,
+  checked: false,
+  quantities: [],
+  source_meals: [],
+  last_used_at: new Date().toISOString(),
+};
+
 export async function removeItem(id: string): Promise<void> {
-  const { error } = await sb().from(LIST).delete().eq('id', id);
+  const { error } = await sb().from(LIST).update(ARCHIVE_PATCH).eq('id', id);
   fail('Klarte ikke å fjerne varen', error);
 }
 
 export async function removeCheckedItems(): Promise<void> {
-  const { error } = await sb().from(LIST).delete().eq('checked', true);
+  const { error } = await sb()
+    .from(LIST)
+    .update({ ...ARCHIVE_PATCH, last_used_at: new Date().toISOString() })
+    .eq('checked', true)
+    .eq('archived', false);
   fail('Klarte ikke å fjerne avhukede varer', error);
 }
 
 export async function clearList(): Promise<void> {
-  const { error } = await sb().from(LIST).delete().not('id', 'is', null);
+  const { error } = await sb()
+    .from(LIST)
+    .update({ ...ARCHIVE_PATCH, last_used_at: new Date().toISOString() })
+    .eq('archived', false);
   fail('Klarte ikke å tømme lista', error);
+}
+
+/** Legger en vare fra historikken tilbake på lista, uten mengde. */
+export async function addFromHistory(item: ShoppingItem): Promise<void> {
+  const { error } = await sb()
+    .from(LIST)
+    .update(revivePayload(item, [], []))
+    .eq('id', item.id);
+  fail(`Klarte ikke å legge til ${item.name}`, error);
+}
+
+/** Sletter en vare for godt. Det eneste stedet noe faktisk fjernes. */
+export async function forgetItem(id: string): Promise<void> {
+  const { error } = await sb().from(LIST).delete().eq('id', id);
+  fail('Klarte ikke å slette varen', error);
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,8 @@ export interface AppState {
   items: ShoppingItem[];
   meals: Meal[];
   week: WeekPlanItem[];
+  /** Arkiverte varer — samme rader som lista, bare ikke på den nå. */
+  history: ShoppingItem[];
 }
 
 export interface Actions {
@@ -11,6 +13,8 @@ export interface Actions {
   toggleChecked: (item: ShoppingItem) => void;
   removeItem: (item: ShoppingItem) => void;
   removeChecked: () => void;
+  addFromHistory: (item: ShoppingItem) => void;
+  forgetItem: (item: ShoppingItem) => void;
   clearList: () => void;
   toggleWeekMeal: (meal: Meal) => void;
   addWeekToList: () => void;
