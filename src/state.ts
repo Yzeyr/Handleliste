@@ -6,6 +6,8 @@ export interface AppState {
   week: WeekPlanItem[];
   /** Vareregisteret: arkiverte rader — samme rader som lista, bare ikke på den nå. */
   register: ShoppingItem[];
+  /** Varer den andre har endret siden appen sist var åpen her. */
+  unseen: Set<string>;
 }
 
 export interface Actions {

@@ -1,5 +1,5 @@
 import { el } from '../dom.ts';
-import { buildShareLink, isConfigFixed, loadConfig } from '../lib/config.ts';
+import { buildShareLink, deviceName, isConfigFixed, loadConfig, setDeviceName } from '../lib/config.ts';
 
 /**
  * Innstillinger: dele oppsettet med den andre telefonen, og bytte nøkler.
@@ -41,7 +41,25 @@ export function createSettingsView(actions: {
     },
   });
 
+  const nameInput = el('input', {
+    attrs: {
+      type: 'text',
+      placeholder: 'Fornavn',
+      'aria-label': 'Navnet ditt',
+      autocomplete: 'off',
+      value: deviceName() ?? '',
+    },
+    on: { change: () => setDeviceName(nameInput.value) },
+  });
+
   return el('section', { class: 'view' }, [
+    el('h2', { class: 'view-title', text: 'Navnet ditt' }),
+    el('p', {
+      class: 'fine-print',
+      text: 'Brukes bare til å vise hvem som endret hva. Tomt felt blir «Noen».',
+    }),
+    nameInput,
+    el('hr'),
     el('h2', { class: 'view-title', text: 'Del med den andre telefonen' }),
     el('p', {
       text:

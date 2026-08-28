@@ -72,6 +72,9 @@ create table if not exists public.shopping_list_items (
   -- Tom array = lagt inn manuelt.
   source_meals     text[] not null default '{}',
   note             text,
+  -- Navnet på telefonen som sist skrev til raden, så appen kan si
+  -- "Kari la til melk" i stedet for bare "lista er endret".
+  updated_by       text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
@@ -111,7 +114,13 @@ create table if not exists public.week_plan_items (
 
 -- ---------------------------------------------------------------------------
 -- Realtime: begge telefonene får push ved endring
+--
+-- replica identity full gjør at endringshendelsen også bærer raden slik den
+-- var FØR endringen. Uten det kan ikke appen skille "haket av" fra "fjernet",
+-- og varslene blir upresise. Koster litt mer WAL — på en handleliste for to
+-- er det ingenting.
 -- ---------------------------------------------------------------------------
+alter table public.shopping_list_items replica identity full;
 alter publication supabase_realtime add table public.shopping_list_items;
 alter publication supabase_realtime add table public.week_plan_items;
 

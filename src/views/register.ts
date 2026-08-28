@@ -38,7 +38,7 @@ export function createRegisterView(actions: Actions): View<AppState> {
     ),
   ]);
 
-  let current: AppState = { items: [], meals: [], week: [], register: [] };
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set() };
 
   function render(): void {
     const matches = current.register.filter(

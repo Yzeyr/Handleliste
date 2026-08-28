@@ -1,5 +1,6 @@
 import { getClient } from './supabase.ts';
-import { loadConfig } from './config.ts';
+import { deviceName, loadConfig } from './config.ts';
+import type { ChangeEvent } from './changes.ts';
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
@@ -99,6 +100,7 @@ function revivePayload(
     archived: false,
     use_count: item.archived ? item.use_count + 1 : item.use_count,
     last_used_at: new Date().toISOString(),
+    updated_by: deviceName(),
   };
 }
 
@@ -109,6 +111,7 @@ function insertPayload(pending: PendingItem): Record<string, unknown> {
     quantities: pending.quantities,
     category: pending.category,
     source_meals: pending.sourceMeals,
+    updated_by: deviceName(),
   };
 }
 
@@ -188,7 +191,7 @@ export async function addManualItem(input: {
 }
 
 export async function setChecked(id: string, checked: boolean): Promise<void> {
-  const { error } = await sb().from(LIST).update({ checked }).eq('id', id);
+  const { error } = await sb().from(LIST).update({ checked, updated_by: deviceName() }).eq('id', id);
   fail('Klarte ikke å hake av varen', error);
 }
 
@@ -205,6 +208,7 @@ function archivePatch(): Record<string, unknown> {
     checked: false,
     source_meals: [],
     last_used_at: new Date().toISOString(),
+    updated_by: deviceName(),
   };
 }
 
@@ -276,18 +280,33 @@ export async function clearWeek(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Varsler ved enhver endring på lista eller ukemenyen. Vi sender ikke selve
- * raden videre — kalleren henter alt på nytt. Lista er liten, og "hent på
- * nytt" er umulig å få ut av synk, i motsetning til å flette inn deltaer.
+ * Varsler ved enhver endring på lista eller ukemenyen.
+ *
+ * Kalleren henter fortsatt alt på nytt — lista er liten, og "hent på nytt" er
+ * umulig å få ut av synk, i motsetning til å flette inn deltaer. Men raden
+ * sendes med, slik at appen kan si HVA som skjedde og hvem som gjorde det.
  */
-export function subscribeToChanges(onChange: () => void): () => void {
+export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void): () => void {
   const channel = sb()
     .channel('handleliste-endringer')
-    .on('postgres_changes', { event: '*', schema: 'public', table: LIST }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'week_plan_items' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: LIST }, (payload) => {
+      onChange({
+        type: payload.eventType as ChangeEvent['type'],
+        next: isRow(payload.new) ? payload.new : null,
+        previous: isRow(payload.old) ? payload.old : null,
+      });
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'week_plan_items' }, () => {
+      onChange(null);
+    })
     .subscribe();
 
   return () => {
     void sb().removeChannel(channel);
   };
+}
+
+/** Supabase sender {} for `old` når det ikke finnes noe å sende. */
+function isRow(value: unknown): value is Partial<ShoppingItem> {
+  return typeof value === 'object' && value !== null && Object.keys(value).length > 0;
 }

@@ -288,6 +288,51 @@ button { cursor: pointer; }
 .was { text-decoration: line-through; }
 .arrow { opacity: 0.6; }
 
+/* ---------- varsler ---------- */
+
+.toast {
+  position: sticky;
+  bottom: 8px;
+  margin: 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.toast:empty { display: none; }
+.toast.visible { opacity: 1; transform: none; }
+
+.banner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  align-self: center;
+}
+
+.item.unseen .item-name { font-weight: 650; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+}
+
 /* ---------- faner ---------- */
 
 .tabs {

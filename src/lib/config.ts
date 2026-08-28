@@ -107,3 +107,47 @@ export function applyShareLink(): boolean {
   window.history.replaceState(null, '', window.location.pathname + window.location.search);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Hvem er dette, og hva har jeg sett?
+// Begge deler er per telefon, ikke per konto — appen har ingen innlogging.
+// ---------------------------------------------------------------------------
+
+const NAME_KEY = 'handleliste.navn';
+const SEEN_KEY = 'handleliste.sistSett';
+
+export function deviceName(): string | null {
+  try {
+    const name = window.localStorage.getItem(NAME_KEY);
+    return name === null || name.trim() === '' ? null : name.trim();
+  } catch {
+    return null;
+  }
+}
+
+export function setDeviceName(name: string): void {
+  try {
+    const trimmed = name.trim();
+    if (trimmed === '') window.localStorage.removeItem(NAME_KEY);
+    else window.localStorage.setItem(NAME_KEY, trimmed);
+  } catch {
+    // Uten lagring blir endringene bare umerkede. Ikke verdt å feile på.
+  }
+}
+
+/** Da appen sist var åpen her. Null første gang. */
+export function lastSeenAt(): string | null {
+  try {
+    return window.localStorage.getItem(SEEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function markSeenNow(): void {
+  try {
+    window.localStorage.setItem(SEEN_KEY, new Date().toISOString());
+  } catch {
+    // se over
+  }
+}

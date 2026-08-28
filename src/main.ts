@@ -7,7 +7,8 @@ import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
 import { createSetupView } from './views/setup.ts';
-import { applyShareLink, clearConfig, isConfigFixed } from './lib/config.ts';
+import { applyShareLink, clearConfig, deviceName, isConfigFixed, lastSeenAt, markSeenNow } from './lib/config.ts';
+import { describeChange, summarizeChanges, type ChangeEvent } from './lib/changes.ts';
 import { createSettingsButton, createSettingsView } from './views/settings.ts';
 import { resetClient } from './lib/supabase.ts';
 
@@ -44,7 +45,7 @@ function boot(container: HTMLElement): void {
 }
 
 async function start(container: HTMLElement): Promise<void> {
-  const state: AppState = { items: [], meals: [], week: [], register: [] };
+  const state: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set() };
   let tab: TabId = 'liste';
 
   const actions: Actions = {
@@ -100,6 +101,11 @@ async function start(container: HTMLElement): Promise<void> {
   } as const;
 
   const status = el('div', { class: 'status', attrs: { role: 'status' } });
+  const toast = el('div', { class: 'toast', attrs: { role: 'status', 'aria-live': 'polite' } });
+
+  // Frosset ved oppstart: alt som er endret av den andre etter dette
+  // tidspunktet markeres helt til appen lukkes igjen.
+  const seenBefore = lastSeenAt();
   const content = el('main', { class: 'content' });
   const settingsButton = createSettingsButton(() => showSettings());
   const tabBar = el(
@@ -122,6 +128,7 @@ async function start(container: HTMLElement): Promise<void> {
       settingsButton,
     ]),
     content,
+    toast,
     tabBar,
   ]);
 
@@ -137,6 +144,21 @@ async function start(container: HTMLElement): Promise<void> {
         close: () => setTab(tab),
       }),
     ]);
+  }
+
+  let toastTimer: number | undefined;
+  let pending: string[] = [];
+
+  /** Samler endringer som kommer tett, så det blir én melding og ikke fem. */
+  function announce(message: string): void {
+    pending.push(message);
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.textContent = summarizeChanges(pending);
+      toast.classList.add('visible');
+      pending = [];
+      window.setTimeout(() => toast.classList.remove('visible'), 4000);
+    }, 400);
   }
 
   let statusTimer: number | undefined;
@@ -164,6 +186,17 @@ async function start(container: HTMLElement): Promise<void> {
     views[tab].update(state);
   }
 
+  /** Varer den andre har rørt siden forrige gang appen var åpen her. */
+  function unseenIds(): Set<string> {
+    if (seenBefore === null) return new Set();
+    const me = deviceName();
+    return new Set(
+      state.items
+        .filter((item) => item.updated_at > seenBefore && item.updated_by !== null && item.updated_by !== me)
+        .map((item) => item.id),
+    );
+  }
+
   /**
    * Kjører en handling og henter deretter alt på nytt. Realtime varsler den
    * andre telefonen; denne refetchen er for vår egen, som ikke får sitt eget
@@ -189,6 +222,8 @@ async function start(container: HTMLElement): Promise<void> {
     state.items = items;
     state.week = week;
     state.register = register;
+    state.unseen = unseenIds();
+    markSeenNow();
     refreshView();
   }
 
@@ -228,7 +263,11 @@ async function start(container: HTMLElement): Promise<void> {
   }
 
   // Realtime: den andre telefonen sin endring lander her.
-  db.subscribeToChanges(() => {
+  db.subscribeToChanges((event: ChangeEvent | null) => {
+    if (event !== null) {
+      const message = describeChange(event, deviceName());
+      if (message !== null) announce(message);
+    }
     void reload().catch(() => showStatus('Mistet kontakt med databasen', true));
   });
 }

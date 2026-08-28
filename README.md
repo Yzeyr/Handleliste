@@ -19,8 +19,9 @@ For ekte, delt liste:
 
 1. Lag et gratis prosjekt på [supabase.com](https://supabase.com).
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
-   Har du kjørt en eldre `setup.sql` fra før, kjør `supabase/03_history.sql`
-   i stedet — den legger bare til historikk-kolonnene.
+   Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet:
+   `03_history.sql` og `04_notifications.sql`. De legger bare til det som er
+   nytt, og er trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -101,6 +102,7 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `archived` | boolean | har vært på lista, står ikke på den nå — dette er vareregisteret |
 | `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
 | `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
+| `updated_by` | text | navnet på telefonen som sist skrev til raden |
 | `source_meals` | text[] | `{Lasagne,Fiskesuppe}` — vises som "fra Lasagne, Fiskesuppe". Tom = lagt inn manuelt |
 | `note` | text | fritekst, f.eks. "den billige" |
 | `created_at` / `updated_at` | timestamptz | `updated_at` settes av trigger |
@@ -175,7 +177,9 @@ regnes som samme vare.
 src/lib/normalize.ts   navn -> nøkkel, med synonymtabell
 src/lib/units.ts       enheter, omregning, visningsformat
 src/lib/merge.ts       all sammenslåingslogikk (ren, uten database)
-src/lib/merge.test.ts  19 tester av det over
+src/lib/merge.test.ts  tester av det over
+src/lib/changes.ts     endring -> setning ("Kari handlet Melk"), ren
+src/lib/changes.test.ts tester av det over
 src/lib/db.ts          Supabase-kall og realtime
 src/lib/db.mock.ts     samme API i minnet, for npm run dev:mock
 src/views/             liste, middager, uke, varer
@@ -204,12 +208,34 @@ Navnene i registeret foreslås også mens du skriver i «Legg til vare».
 «Slett fra varene» sletter for godt. Det er det eneste stedet i appen noe
 faktisk fjernes fra databasen.
 
-## Realtime
+## Realtime og varsler
 
 `shopping_list_items` og `week_plan_items` ligger i `supabase_realtime`.
-Klienten abonnerer på alle endringer og oppdaterer lokal state. `meals`
-er ikke med — oppskrifter endres ikke mens dere står i butikken, de hentes
-én gang ved oppstart.
+Klienten abonnerer på alle endringer og henter alt på nytt. `meals` er ikke
+med — oppskrifter endres ikke mens dere står i butikken, de hentes én gang
+ved oppstart.
+
+Varslene er i appen, ikke push til låseskjermen:
+
+- **Mens appen er åpen:** en liten melding nederst, «Kari la til Melk (1 l)».
+  Flere endringer tett etter hverandre blir til «3 endringer på lista».
+  Egne endringer varsles ikke tilbake til en selv.
+- **Når du åpner appen:** «2 varer er endret siden du var her sist», og de
+  radene får en prikk. Tidspunktet fryses ved oppstart og lagres i
+  `localStorage`, så markeringen står helt til du lukker appen igjen.
+
+Hvem som gjorde hva kommer fra `updated_by`, som settes fra navnet du
+oppgir under tannhjulet. Tomt navn blir «Noen».
+
+Tabellen har `replica identity full`, slik at endringshendelsen bærer raden
+slik den var *før* endringen. Uten det kan ikke appen skille «haket av» fra
+«fjernet», og varslene blir upresise. `describeChange` i
+`src/lib/changes.ts` er ren og dekket av tester nettopp fordi det er her det
+er lett å si noe som er feil.
+
+**Ekte push** til en telefon i lomma er ikke bygget. Det krever service
+worker, VAPID-nøkler og en Edge Function som sender — eller en tredjepart
+som ntfy. Ikke gjort, ikke halvgjort.
 
 ## Sikkerhet — verdt å vite
 

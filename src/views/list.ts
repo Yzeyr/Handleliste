@@ -98,9 +98,10 @@ export function createListView(actions: Actions): View<AppState> {
     ],
   );
 
+  const banner = el('div');
   const body = el('div', { class: 'list-body' });
   const footer = el('div', { class: 'list-footer' });
-  const element = el('section', { class: 'view' }, [form, body, footer]);
+  const element = el('section', { class: 'view' }, [form, banner, body, footer]);
 
   function update(state: AppState): void {
     replaceChildren(
@@ -126,11 +127,23 @@ export function createListView(actions: Actions): View<AppState> {
         groups.map((group) =>
           el('div', { class: 'group' }, [
             el('h2', { class: 'group-title', text: group.category }),
-            el('ul', { class: 'items' }, group.items.map((item) => renderItem(item, actions))),
+            el('ul', { class: 'items' }, group.items.map((item) => renderItem(item, actions, state.unseen.has(item.id)))),
           ]),
         ),
       );
     }
+
+    const unseenCount = state.items.filter((item) => state.unseen.has(item.id)).length;
+    replaceChildren(banner, [
+      unseenCount > 0 &&
+        el('p', {
+          class: 'banner',
+          text:
+            unseenCount === 1
+              ? '1 vare er endret siden du var her sist'
+              : `${unseenCount} varer er endret siden du var her sist`,
+        }),
+    ]);
 
     const checkedCount = state.items.filter((item) => item.checked).length;
     replaceChildren(footer, [
@@ -148,11 +161,12 @@ export function createListView(actions: Actions): View<AppState> {
   return { element, update };
 }
 
-function renderItem(item: ShoppingItem, actions: Actions): HTMLElement {
+function renderItem(item: ShoppingItem, actions: Actions, unseen: boolean): HTMLElement {
   const quantity = formatQuantities(item.quantities);
   const source = item.source_meals.join(', ');
+  const classes = ['item', item.checked && 'checked', unseen && 'unseen'].filter(Boolean).join(' ');
 
-  return el('li', { class: item.checked ? 'item checked' : 'item' }, [
+  return el('li', { class: classes }, [
     el(
       'button',
       {
@@ -166,6 +180,7 @@ function renderItem(item: ShoppingItem, actions: Actions): HTMLElement {
           el('span', { class: 'item-line' }, [
             el('span', { class: 'item-name', text: item.name }),
             quantity !== '' && el('span', { class: 'item-qty', text: quantity }),
+            unseen && el('span', { class: 'new-dot', attrs: { title: 'Endret siden sist', 'aria-label': 'Endret siden sist' } }),
           ]),
           source !== '' && el('span', { class: 'item-source', text: source }),
         ]),

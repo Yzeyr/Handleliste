@@ -38,6 +38,8 @@ export interface ShoppingItem {
   /** Hvor mange ganger varen har vært lagt på lista. Sorterer historikken. */
   use_count: number;
   last_used_at: string;
+  /** Navnet på telefonen som sist skrev til raden. Null hvis ikke satt. */
+  updated_by: string | null;
   source_meals: string[];
   note: string | null;
   created_at: string;

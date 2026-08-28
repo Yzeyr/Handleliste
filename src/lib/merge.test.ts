@@ -53,6 +53,7 @@ function listItem(
     archived,
     use_count: 1,
     last_used_at: '',
+    updated_by: null,
     source_meals: sourceMeals,
     note: null,
     created_at: '',

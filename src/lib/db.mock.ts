@@ -10,7 +10,9 @@
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
+import { deviceName } from './config.ts';
 import type { Category, Meal, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
+import type { ChangeEvent } from './changes.ts';
 
 export function isConfigured(): boolean {
   return true;
@@ -139,10 +141,10 @@ const MEALS: Meal[] = [
 
 let items: ShoppingItem[] = [];
 let week: WeekPlanItem[] = [];
-const listeners = new Set<() => void>();
+const listeners = new Set<(event: ChangeEvent | null) => void>();
 
-function notify(): void {
-  for (const listener of listeners) listener();
+function notify(event: ChangeEvent | null = null): void {
+  for (const listener of listeners) listener(event);
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -176,6 +178,7 @@ function applyPending(pending: readonly PendingItem[]): void {
     if (update.item.archived) update.item.use_count += 1;
     update.item.archived = false;
     update.item.last_used_at = new Date().toISOString();
+    update.item.updated_by = deviceName();
   }
   const now = new Date().toISOString();
   for (const insert of inserts) {
@@ -189,6 +192,7 @@ function applyPending(pending: readonly PendingItem[]): void {
       archived: false,
       use_count: 1,
       last_used_at: now,
+      updated_by: deviceName(),
       source_meals: insert.sourceMeals,
       note: null,
       created_at: now,
@@ -230,6 +234,7 @@ function archive(item: ShoppingItem): void {
   item.checked = false;
   item.source_meals = [];
   item.last_used_at = new Date().toISOString();
+  item.updated_by = deviceName();
 }
 
 export async function removeItem(itemId: string): Promise<void> {
@@ -289,7 +294,37 @@ export async function clearWeek(): Promise<void> {
   notify();
 }
 
-export function subscribeToChanges(onChange: () => void): () => void {
+export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void): () => void {
   listeners.add(onChange);
   return () => listeners.delete(onChange);
 }
+
+/**
+ * Testkrok: lar en test opptre som den andre telefonen, som er den eneste
+ * måten å utløse et varsel på når alt kjører i én nettleser. Finnes bare i
+ * denne mock-utgaven, som aldri er med i produksjonsbygget.
+ */
+(window as unknown as Record<string, unknown>).__somDenAndre = (
+  hvem: string,
+  varenavn: string,
+): void => {
+  const now = new Date().toISOString();
+  const item: ShoppingItem = {
+    id: id(),
+    name: varenavn,
+    normalized_name: normalizeName(varenavn),
+    quantities: [{ amount: 1, unit: 'stk' }],
+    category: 'annet',
+    checked: false,
+    archived: false,
+    use_count: 1,
+    last_used_at: now,
+    updated_by: hvem,
+    source_meals: [],
+    note: null,
+    created_at: now,
+    updated_at: now,
+  };
+  items.push(item);
+  notify({ type: 'INSERT', next: item, previous: null });
+};
