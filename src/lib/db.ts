@@ -80,7 +80,11 @@ async function fetchAllItems(): Promise<ShoppingItem[]> {
 }
 
 export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
-  const { data, error } = await sb().from('week_plan_items').select('id,meal_id,added_to_list');
+  // `*`, ikke en håndskrevet kolonneliste. Lista her manglet `weekday` da den
+  // kolonnen kom til: dagen ble lagret, men aldri lest tilbake, så raden sto
+  // tom uten at noe feilet. En liste som må holdes i takt med typen er en
+  // felle det ikke er noe å vinne på her.
+  const { data, error } = await sb().from('week_plan_items').select('*');
   fail('Klarte ikke å hente ukemenyen', error);
   return (data ?? []) as WeekPlanItem[];
 }

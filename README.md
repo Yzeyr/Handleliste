@@ -293,6 +293,13 @@ den samme middagen på en annen dag, **flyttes** den. Samme middag to ganger i
 uka går altså ikke — det ville krevd at den indeksen røk, og med den også
 `+ Uke`-knappens av/på-modell inne på Middager.
 
+**Lesingen henter `*`, ikke en håndskrevet kolonneliste.** Første utgave gjorde
+det motsatte, og lista manglet `weekday`: dagen ble lagret, men aldri lest
+tilbake, så raden sto tom uten at noe feilet. Mock-laget returnerer hele
+objekter, så alle nettlesertestene var grønne — feilen fantes bare mot en ekte
+database. `db.select.test.ts` vokter regelen nå: en lesing henter enten `*`
+eller navngir hvert felt typen har.
+
 Middager valgt med `+ Uke` inne på Middager har ingen dag ennå. De havner
 under **Uten dag** med sin egen dagvelger, i stedet for å bli usynlige fordi
 de mangler et felt.
