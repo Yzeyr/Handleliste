@@ -52,9 +52,14 @@ gang. Vil du
 heller bake dem inn ved bygging, legg dem i `.env` før `npm run build:single`
 — da hopper appen rett til lista.
 
-På telefonen: «Legg til på Hjem-skjerm» gir et ikon som åpner uten
+På telefonen: «Legg til på Hjem-skjerm» gir et sandwich-ikon som åpner uten
 nettleserfelt. Det er ikke en full PWA — den trenger nett for å snakke med
-Supabase.
+Supabase, og det finnes ingen service worker.
+
+Ikonet er tegnet i `icons/icon.svg` og gjengitt til PNG med Chromium, fordi
+iOS ikke godtar SVG som `apple-touch-icon`. PNG-ene og manifestet ligger i
+`public/` og kopieres til `docs/` av byggeskriptet — de kan ikke limes inn i
+HTML-en, iOS henter dem som egne filer.
 
 ## Skjermbilder av flyten
 

@@ -1,0 +1,39 @@
+<!-- Kilden til public/icon-*.png. Gjengis med Chromium og lagres som PNG;
+     iOS godtar ikke SVG som apple-touch-icon. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Selve sandwich-formen. Alt fyll klippes til denne, bortsett fra
+         salaten, som skal stikke utenfor — det er den som gjør at formen
+         leses som mat og ikke som en trekant. -->
+    <clipPath id="form">
+      <path d="M 256 104 L 408 392 L 104 392 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="#0d5c30"/>
+
+  <g transform="rotate(-7 256 256)">
+    <!-- Overbrød, med skorpe langs de to skrå kantene -->
+    <path d="M 256 104 L 340 264 L 172 264 Z"
+          fill="#f3ddb0" stroke="#cf9a45" stroke-width="20" stroke-linejoin="round"/>
+
+    <!-- Salat: bølget, bredere enn brødet, tegnet uten klipp -->
+    <path d="M 132 258
+             q 22 -20 44 0 q 22 -20 44 0 q 22 -20 44 0 q 22 -20 44 0
+             q 22 -20 44 0
+             l 0 26
+             q -22 20 -44 0 q -22 20 -44 0 q -22 20 -44 0 q -22 20 -44 0
+             q -22 20 -44 0 Z"
+          fill="#8fd44a"/>
+
+    <g clip-path="url(#form)">
+      <rect x="60" y="286" width="392" height="34" fill="#d9483b"/>
+      <rect x="60" y="320" width="392" height="30" fill="#f2b736"/>
+      <rect x="60" y="350" width="392" height="70" fill="#f3ddb0"/>
+    </g>
+
+    <!-- Underbrødets skorpe: bare langs bunnkanten -->
+    <path d="M 122 384 L 390 384" stroke="#cf9a45" stroke-width="26"
+          stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

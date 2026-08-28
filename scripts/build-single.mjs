@@ -7,7 +7,7 @@
  * bygget er allerede én chunk hver, så det er ren tekstsammenslåing.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,4 +53,12 @@ if (!html.includes(css)) throw new Error('CSS-en ble endret under innliming');
 
 mkdirSync(outDir, { recursive: true });
 writeFileSync(outFile, html);
+
+// Ikoner og manifest kan ikke limes inn i HTML-en: iOS henter
+// apple-touch-icon som en egen fil, og et manifest må ligge på en URL.
+// De kommer fra public/ via Vite, og følger med til docs/.
+const extras = readdirSync(distDir, { withFileTypes: true })
+  .filter((entry) => entry.isFile() && entry.name !== 'index.html')
+  .map((entry) => entry.name);
+for (const name of extras) copyFileSync(join(distDir, name), join(outDir, name));
 console.log(`\ndocs/index.html — ${(Buffer.byteLength(html) / 1024).toFixed(0)} kB, én fil, ingen eksterne kall`);
