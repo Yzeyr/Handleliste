@@ -1,4 +1,4 @@
-import type { Meal, Quantity, ShoppingItem, WeekPlanItem } from './lib/types.ts';
+import type { Category, Meal, MealDraft, Quantity, ShoppingItem, WeekPlanItem } from './lib/types.ts';
 
 export interface AppState {
   items: ShoppingItem[];
@@ -8,6 +8,7 @@ export interface AppState {
   register: ShoppingItem[];
   /** Varer den andre har endret siden appen sist var åpen her. */
   unseen: Set<string>;
+  aliases: { alias: string; canonical: string }[];
 }
 
 export interface Actions {
@@ -22,4 +23,10 @@ export interface Actions {
   addWeekToList: () => void;
   clearWeek: () => void;
   goToList: () => void;
+  editItem: (item: ShoppingItem, patch: { name: string; category: Category; quantities: Quantity[] }) => void;
+  addAlias: (alias: string, canonical: string) => void;
+  removeAlias: (alias: string) => void;
+  editMeal: (meal: Meal | null) => void;
+  saveMeal: (draft: MealDraft) => void;
+  deleteMeal: (meal: Meal) => void;
 }

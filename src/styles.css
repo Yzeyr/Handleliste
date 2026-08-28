@@ -217,6 +217,66 @@ button { cursor: pointer; }
 .item.checked .item-qty { text-decoration: line-through; }
 .item.checked { opacity: 0.45; }
 
+.item-edit {
+  flex: none;
+  width: 52px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.item-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.item-editor .row { align-items: stretch; }
+.item-editor .amount, .item-editor .unit { width: 30%; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label { font-size: 12px; color: var(--muted); }
+
+.section-title {
+  margin: 8px 0 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.ingredient-rows { display: flex; flex-direction: column; gap: 14px; }
+.ingredient-row { display: flex; flex-direction: column; gap: 6px; }
+.ingredient-row .amount, .ingredient-row .unit { width: 30%; }
+.ingredient-row .item-remove { border: 1px solid var(--line); border-radius: var(--radius); }
+
+textarea {
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  padding: 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.alias-block { display: flex; flex-direction: column; gap: 8px; }
+.alias-list { list-style: none; margin: 0; padding: 0; }
+.alias-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
 .item-remove {
   flex: none;
   width: 46px;
@@ -302,11 +362,27 @@ button { cursor: pointer; }
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   opacity: 0;
   transform: translateY(8px);
+  /* Usynlig varsel skal ikke stjele trykk fra lista under. Når det er synlig
+     må det derimot kunne treffes — det er der Angre-knappen bor. */
   pointer-events: none;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
+.toast.visible { pointer-events: auto; }
+
 .toast:empty { display: none; }
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast-text { flex: 1; min-width: 0; }
+
+.toast-undo {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid currentColor;
+  color: var(--bg);
+  font-weight: 600;
+}
 .toast.visible { opacity: 1; transform: none; }
 
 .banner {

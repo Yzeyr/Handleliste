@@ -19,9 +19,20 @@ export function createMealsView(actions: Actions): View<AppState> {
   });
 
   const body = el('div', { class: 'meals-body' });
-  const element = el('section', { class: 'view' }, [el('div', { class: 'row' }, [search]), body]);
+  const element = el('section', { class: 'view' }, [
+    el('div', { class: 'row' }, [
+      search,
+      el('button', {
+        class: 'primary',
+        text: '+ Ny',
+        attrs: { type: 'button', 'aria-label': 'Ny middag' },
+        on: { click: () => actions.editMeal(null) },
+      }),
+    ]),
+    body,
+  ]);
 
-  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set() };
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
 
   function render(): void {
     const inWeek = new Set(current.week.map((w) => w.meal_id));
@@ -105,6 +116,12 @@ function renderMeal(
         meal.steps.length > 0 && el('h3', { text: 'Slik gjør du' }),
         meal.steps.length > 0 &&
           el('ol', { class: 'steps' }, meal.steps.map((step) => el('li', { text: step }))),
+        el('button', {
+          class: 'ghost',
+          text: 'Endre oppskriften',
+          attrs: { type: 'button' },
+          on: { click: () => actions.editMeal(meal) },
+        }),
       ])
     : null;
 

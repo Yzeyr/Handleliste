@@ -40,6 +40,8 @@ export interface ShoppingItem {
   last_used_at: string;
   /** Navnet på telefonen som sist skrev til raden. Null hvis ikke satt. */
   updated_by: string | null;
+  /** Telles opp av databasen ved hver endring. Grunnlaget for sammenlign-og-bytt. */
+  version: number;
   source_meals: string[];
   note: string | null;
   created_at: string;
@@ -73,4 +75,20 @@ export interface WeekPlanItem {
   id: string;
   meal_id: string;
   added_to_list: boolean;
+}
+
+/** En middag under redigering, før den har møtt databasen. */
+export interface MealDraft {
+  id: string | null;
+  name: string;
+  emoji: string | null;
+  description: string | null;
+  servings: number;
+  steps: string[];
+  ingredients: {
+    name: string;
+    amount: number | null;
+    unit: string | null;
+    category: Category;
+  }[];
 }

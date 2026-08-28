@@ -11,7 +11,7 @@ import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } fro
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
 import { deviceName } from './config.ts';
-import type { Category, Meal, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
+import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 import type { ChangeEvent } from './changes.ts';
 
 export function isConfigured(): boolean {
@@ -41,7 +41,7 @@ function ing(
   };
 }
 
-const MEALS: Meal[] = [
+let MEALS: Meal[] = [
   {
     id: 'taco',
     name: 'Taco',
@@ -169,35 +169,66 @@ export async function fetchWeekPlan(): Promise<WeekPlanItem[]> {
   return clone(week);
 }
 
+let aliases: { alias: string; canonical: string }[] = [];
+
 function applyPending(pending: readonly PendingItem[]): void {
-  const { updates, inserts } = planListChange(items, pending);
-  for (const update of updates) {
-    update.item.quantities = update.quantities;
-    update.item.source_meals = update.sourceMeals;
-    update.item.checked = false;
-    if (update.item.archived) update.item.use_count += 1;
-    update.item.archived = false;
-    update.item.last_used_at = new Date().toISOString();
-    update.item.updated_by = deviceName();
+  // Samme sammenlign-og-bytt-løkke som db.ts, så en test kan bumpe versjonen
+  // under føttene på oss og se at runden går om igjen i stedet for å skrive
+  // over det som skjedde i mellomtiden.
+  let remaining = [...pending];
+
+  for (let attempt = 0; attempt < 4 && remaining.length > 0; attempt += 1) {
+    const byName = new Map(remaining.map((item) => [item.normalizedName, item]));
+    const { updates, inserts } = planListChange(clone(items), remaining);
+    const retry: PendingItem[] = [];
+
+    for (const update of updates) {
+      const live = items.find((row) => row.id === update.item.id);
+      if (live === undefined || live.version !== update.item.version) {
+        const missed = byName.get(update.item.normalized_name);
+        if (missed !== undefined) retry.push(missed);
+        continue;
+      }
+      live.quantities = update.quantities;
+      live.source_meals = update.sourceMeals;
+      live.checked = false;
+      if (live.archived) live.use_count += 1;
+      live.archived = false;
+      live.last_used_at = new Date().toISOString();
+      live.updated_by = deviceName();
+      live.version += 1;
+    }
+
+    const now = new Date().toISOString();
+    for (const insert of inserts) {
+      if (items.some((row) => row.normalized_name === insert.normalizedName)) {
+        retry.push(insert);
+        continue;
+      }
+      items.push({
+        id: id(),
+        name: insert.name,
+        normalized_name: insert.normalizedName,
+        quantities: insert.quantities,
+        category: insert.category,
+        checked: false,
+        archived: false,
+        use_count: 1,
+        last_used_at: now,
+        updated_by: deviceName(),
+        version: 0,
+        source_meals: insert.sourceMeals,
+        note: null,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    remaining = retry;
   }
-  const now = new Date().toISOString();
-  for (const insert of inserts) {
-    items.push({
-      id: id(),
-      name: insert.name,
-      normalized_name: insert.normalizedName,
-      quantities: insert.quantities,
-      category: insert.category,
-      checked: false,
-      archived: false,
-      use_count: 1,
-      last_used_at: now,
-      updated_by: deviceName(),
-      source_meals: insert.sourceMeals,
-      note: null,
-      created_at: now,
-      updated_at: now,
-    });
+
+  if (remaining.length > 0) {
+    throw new Error('Lista endret seg raskere enn vi rakk å skrive. Prøv en gang til.');
   }
   notify();
 }
@@ -235,6 +266,7 @@ function archive(item: ShoppingItem): void {
   item.source_meals = [];
   item.last_used_at = new Date().toISOString();
   item.updated_by = deviceName();
+  item.version += 1;
 }
 
 export async function removeItem(itemId: string): Promise<void> {
@@ -294,6 +326,11 @@ export async function clearWeek(): Promise<void> {
   notify();
 }
 
+export async function restoreWeek(entries: readonly WeekPlanItem[]): Promise<void> {
+  week = entries.map((entry) => ({ ...entry }));
+  notify();
+}
+
 export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void): () => void {
   listeners.add(onChange);
   return () => listeners.delete(onChange);
@@ -320,6 +357,7 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
     use_count: 1,
     last_used_at: now,
     updated_by: hvem,
+    version: 0,
     source_meals: [],
     note: null,
     created_at: now,
@@ -327,4 +365,96 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
   };
   items.push(item);
   notify({ type: 'INSERT', next: item, previous: null });
+};
+
+// ---------------------------------------------------------------------------
+// Redigering, angre, synonymer og egne middager — samme signaturer som db.ts
+// ---------------------------------------------------------------------------
+
+export async function updateItem(
+  item: ShoppingItem,
+  patch: { name: string; category: Category; quantities: Quantity[] },
+): Promise<void> {
+  const name = patch.name.trim();
+  if (name === '') throw new Error('Varen må ha et navn');
+  const key = normalizeName(name);
+  if (items.some((row) => row.id !== item.id && row.normalized_name === key)) {
+    throw new Error(`«${name}» finnes allerede — gi den et annet navn`);
+  }
+  const found = items.find((row) => row.id === item.id);
+  if (found !== undefined) {
+    found.name = name;
+    found.normalized_name = key;
+    found.category = patch.category;
+    found.quantities = patch.quantities;
+    found.updated_by = deviceName();
+    found.version += 1;
+  }
+  notify();
+}
+
+export async function restoreItems(restored: readonly ShoppingItem[]): Promise<void> {
+  for (const item of restored) {
+    const index = items.findIndex((row) => row.id === item.id);
+    if (index === -1) items.push({ ...item });
+    else items[index] = { ...item };
+  }
+  notify();
+}
+
+export async function fetchAliases(): Promise<{ alias: string; canonical: string }[]> {
+  return clone(aliases);
+}
+
+export async function addAlias(alias: string, canonical: string): Promise<void> {
+  const from = alias.trim();
+  const to = canonical.trim();
+  if (from === '' || to === '') throw new Error('Begge feltene må fylles ut');
+  aliases = [...aliases.filter((row) => row.alias !== from), { alias: from, canonical: to }];
+  notify();
+}
+
+export async function removeAlias(alias: string): Promise<void> {
+  aliases = aliases.filter((row) => row.alias !== alias);
+  notify();
+}
+
+export async function saveMeal(draft: MealDraft): Promise<string> {
+  const name = draft.name.trim();
+  if (name === '') throw new Error('Middagen må ha et navn');
+  if (MEALS.some((m) => m.id !== draft.id && m.name === name)) {
+    throw new Error(`Du har allerede en middag som heter «${name}»`);
+  }
+  const mealId = draft.id ?? id();
+  const meal: Meal = {
+    id: mealId,
+    name,
+    emoji: draft.emoji?.trim() || null,
+    description: draft.description?.trim() || null,
+    servings: draft.servings,
+    steps: draft.steps,
+    tags: [],
+    ingredients: draft.ingredients
+      .filter((row) => row.name.trim() !== '')
+      .map((row, index) =>
+        ing(mealId, row.name.trim(), row.amount, row.amount === null ? null : row.unit, row.category, index),
+      ),
+  };
+  const index = MEALS.findIndex((m) => m.id === mealId);
+  if (index === -1) MEALS = [...MEALS, meal].sort((a, b) => a.name.localeCompare(b.name, 'no'));
+  else MEALS[index] = meal;
+  notify();
+  return mealId;
+}
+
+export async function deleteMeal(mealId: string): Promise<void> {
+  MEALS = MEALS.filter((m) => m.id !== mealId);
+  week = week.filter((entry) => entry.meal_id !== mealId);
+  notify();
+}
+
+/** Testkrok: later som den andre telefonen rørte raden, uten å endre noe. */
+(window as unknown as Record<string, unknown>).__bumpVersjon = (varenavn: string): void => {
+  const found = items.find((row) => row.name === varenavn);
+  if (found !== undefined) found.version += 1;
 };

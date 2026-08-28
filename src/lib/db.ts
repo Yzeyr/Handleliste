@@ -4,7 +4,8 @@ import type { ChangeEvent } from './changes.ts';
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
-import type { Category, Meal, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
+import { normalizeName as normalize } from './normalize.ts';
+import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 
 const LIST = 'shopping_list_items';
 
@@ -123,42 +124,45 @@ function insertPayload(pending: PendingItem): Record<string, unknown> {
  * synes at det står igjen å handle.
  */
 async function applyPending(pending: readonly PendingItem[]): Promise<void> {
-  if (pending.length === 0) return;
+  // Sammenlign-og-bytt. Sammenslåingen regnes ut i klienten, så mellom lesing
+  // og skriving kan den andre telefonen ha rukket å endre raden. Da treffer
+  // oppdateringen ingen rader — fordi versjonen ikke stemmer lenger — og vi
+  // leser på nytt og regner om, i stedet for å skrive over det de gjorde.
+  let remaining = [...pending];
 
-  // Arkiverte rader må være med: den unike indeksen gjør at en ny "helmelk"
-  // ikke kan settes inn ved siden av en arkivert "helmelk" — den skal vekkes
-  // til live igjen.
-  const current = await fetchAllItems();
-  const { updates, inserts } = planListChange(current, pending);
+  for (let attempt = 0; attempt < 4 && remaining.length > 0; attempt += 1) {
+    const byName = new Map(remaining.map((item) => [item.normalizedName, item]));
+    const { updates, inserts } = planListChange(await fetchAllItems(), remaining);
+    const retry: PendingItem[] = [];
 
-  for (const update of updates) {
-    const { error } = await sb()
-      .from(LIST)
-      .update(revivePayload(update.item, update.quantities, update.sourceMeals))
-      .eq('id', update.item.id);
-    fail(`Klarte ikke å oppdatere ${update.item.name}`, error);
+    for (const update of updates) {
+      const { data, error } = await sb()
+        .from(LIST)
+        .update(revivePayload(update.item, update.quantities, update.sourceMeals))
+        .eq('id', update.item.id)
+        .eq('version', update.item.version)
+        .select('id');
+      fail(`Klarte ikke å oppdatere ${update.item.name}`, error);
+
+      if ((data ?? []).length === 0) {
+        const missed = byName.get(update.item.normalized_name);
+        if (missed !== undefined) retry.push(missed);
+      }
+    }
+
+    if (inserts.length > 0) {
+      const { error } = await sb().from(LIST).insert(inserts.map(insertPayload));
+      // 23505: den unike indeksen slo til fordi noen andre satte inn samme
+      // vare i mellomtiden. Neste runde finner raden og slår sammen mot den.
+      if (error !== null && error.code === '23505') retry.push(...inserts);
+      else fail('Klarte ikke å legge til varer', error);
+    }
+
+    remaining = retry;
   }
 
-  if (inserts.length > 0) {
-    const { error } = await sb().from(LIST).insert(inserts.map(insertPayload));
-    // 23505 = brudd på den unike indeksen: noen andre la inn samme vare i
-    // mellomtiden. Da er svaret å lese på nytt og slå sammen mot deres rad.
-    if (error !== null && error.code === '23505') {
-      const retry = planListChange(await fetchAllItems(), inserts);
-      for (const update of retry.updates) {
-        const { error: retryError } = await sb()
-          .from(LIST)
-          .update(revivePayload(update.item, update.quantities, update.sourceMeals))
-          .eq('id', update.item.id);
-        fail(`Klarte ikke å oppdatere ${update.item.name}`, retryError);
-      }
-      if (retry.inserts.length > 0) {
-        const { error: insertError } = await sb().from(LIST).insert(retry.inserts.map(insertPayload));
-        fail('Klarte ikke å legge til varer', insertError);
-      }
-      return;
-    }
-    fail('Klarte ikke å legge til varer', error);
+  if (remaining.length > 0) {
+    throw new Error('Lista endret seg raskere enn vi rakk å skrive. Prøv en gang til.');
   }
 }
 
@@ -270,6 +274,17 @@ export async function markWeekMealsAdded(mealIds: readonly string[]): Promise<vo
   fail('Klarte ikke å oppdatere ukemenyen', error);
 }
 
+/** Angre for ukemenyen: setter den tilbake slik den var. */
+export async function restoreWeek(entries: readonly WeekPlanItem[]): Promise<void> {
+  const { error: clearError } = await sb().from('week_plan_items').delete().not('id', 'is', null);
+  fail('Klarte ikke å angre ukemenyen', clearError);
+  if (entries.length === 0) return;
+  const { error } = await sb()
+    .from('week_plan_items')
+    .insert(entries.map((entry) => ({ id: entry.id, meal_id: entry.meal_id, added_to_list: entry.added_to_list })));
+  fail('Klarte ikke å angre ukemenyen', error);
+}
+
 export async function clearWeek(): Promise<void> {
   const { error } = await sb().from('week_plan_items').delete().not('id', 'is', null);
   fail('Klarte ikke å tømme ukemenyen', error);
@@ -309,4 +324,165 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
 /** Supabase sender {} for `old` når det ikke finnes noe å sende. */
 function isRow(value: unknown): value is Partial<ShoppingItem> {
   return typeof value === 'object' && value !== null && Object.keys(value).length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Redigering av en vare som står på lista
+// ---------------------------------------------------------------------------
+
+export async function updateItem(
+  item: ShoppingItem,
+  patch: { name: string; category: Category; quantities: Quantity[] },
+): Promise<void> {
+  const name = patch.name.trim();
+  if (name === '') throw new Error('Varen må ha et navn');
+
+  const { error } = await sb()
+    .from(LIST)
+    .update({
+      name,
+      normalized_name: normalize(name),
+      category: patch.category,
+      quantities: patch.quantities,
+      updated_by: deviceName(),
+    })
+    .eq('id', item.id);
+
+  // Den unike indeksen: navnet peker nå på en vare som allerede finnes.
+  // Å slå dem sammen her ville vært å gjette; be heller om et annet navn.
+  if (error !== null && error.code === '23505') {
+    throw new Error(`«${name}» finnes allerede — gi den et annet navn`);
+  }
+  fail('Klarte ikke å lagre endringen', error);
+}
+
+// ---------------------------------------------------------------------------
+// Angre
+// ---------------------------------------------------------------------------
+
+/**
+ * Setter rader tilbake slik de var. Brukes av angre-knappen, som holder på
+ * radene fra før handlingen. En rad som er slettet settes inn igjen med sin
+ * gamle id, så alt som pekte på den fortsatt stemmer.
+ */
+export async function restoreItems(items: readonly ShoppingItem[]): Promise<void> {
+  for (const item of items) {
+    const patch = {
+      name: item.name,
+      normalized_name: item.normalized_name,
+      quantities: item.quantities,
+      category: item.category,
+      checked: item.checked,
+      archived: item.archived,
+      use_count: item.use_count,
+      source_meals: item.source_meals,
+      last_used_at: item.last_used_at,
+      updated_by: item.updated_by,
+    };
+
+    const { data, error } = await sb().from(LIST).update(patch).eq('id', item.id).select('id');
+    fail(`Klarte ikke å angre ${item.name}`, error);
+    if ((data ?? []).length > 0) continue;
+
+    const { error: insertError } = await sb().from(LIST).insert({ id: item.id, ...patch });
+    if (insertError !== null && insertError.code === '23505') {
+      throw new Error(`Kan ikke angre ${item.name} — en vare med samme navn finnes nå`);
+    }
+    fail(`Klarte ikke å angre ${item.name}`, insertError);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Egne synonymer
+// ---------------------------------------------------------------------------
+
+export interface Alias {
+  alias: string;
+  canonical: string;
+}
+
+export async function fetchAliases(): Promise<Alias[]> {
+  const { data, error } = await sb().from('ingredient_aliases').select('alias,canonical').order('alias');
+  fail('Klarte ikke å hente synonymer', error);
+  return (data ?? []) as Alias[];
+}
+
+export async function addAlias(alias: string, canonical: string): Promise<void> {
+  const from = alias.trim();
+  const to = canonical.trim();
+  if (from === '' || to === '') throw new Error('Begge feltene må fylles ut');
+  const { error } = await sb()
+    .from('ingredient_aliases')
+    .upsert({ alias: from, canonical: to }, { onConflict: 'alias' });
+  fail('Klarte ikke å lagre synonymet', error);
+}
+
+export async function removeAlias(alias: string): Promise<void> {
+  const { error } = await sb().from('ingredient_aliases').delete().eq('alias', alias);
+  fail('Klarte ikke å slette synonymet', error);
+}
+
+// ---------------------------------------------------------------------------
+// Egne middager
+// ---------------------------------------------------------------------------
+
+/**
+ * Lagrer en middag. Ingrediensene skrives om i sin helhet i stedet for å
+ * flettes rad for rad — en oppskrift er liten, og "slett alt og skriv nytt"
+ * kan ikke etterlate en ingrediens som ble fjernet i skjemaet.
+ */
+export async function saveMeal(draft: MealDraft): Promise<string> {
+  const name = draft.name.trim();
+  if (name === '') throw new Error('Middagen må ha et navn');
+
+  const row = {
+    name,
+    emoji: draft.emoji?.trim() || null,
+    description: draft.description?.trim() || null,
+    servings: draft.servings,
+    steps: draft.steps,
+  };
+
+  let mealId = draft.id;
+  if (mealId === null) {
+    const { data, error } = await sb().from('meals').insert(row).select('id').single();
+    if (error !== null && error.code === '23505') {
+      throw new Error(`Du har allerede en middag som heter «${name}»`);
+    }
+    fail('Klarte ikke å lagre middagen', error);
+    mealId = (data as { id: string }).id;
+  } else {
+    const { error } = await sb().from('meals').update(row).eq('id', mealId);
+    if (error !== null && error.code === '23505') {
+      throw new Error(`Du har allerede en middag som heter «${name}»`);
+    }
+    fail('Klarte ikke å lagre middagen', error);
+
+    const { error: clearError } = await sb().from('meal_ingredients').delete().eq('meal_id', mealId);
+    fail('Klarte ikke å lagre ingrediensene', clearError);
+  }
+
+  const ingredients = draft.ingredients
+    .filter((ingredient) => ingredient.name.trim() !== '')
+    .map((ingredient, index) => ({
+      meal_id: mealId,
+      name: ingredient.name.trim(),
+      normalized_name: normalize(ingredient.name),
+      amount: ingredient.amount,
+      unit: ingredient.amount === null ? null : ingredient.unit,
+      category: ingredient.category,
+      sort_order: index,
+    }));
+
+  if (ingredients.length > 0) {
+    const { error } = await sb().from('meal_ingredients').insert(ingredients);
+    fail('Klarte ikke å lagre ingrediensene', error);
+  }
+
+  return mealId;
+}
+
+export async function deleteMeal(id: string): Promise<void> {
+  const { error } = await sb().from('meals').delete().eq('id', id);
+  fail('Klarte ikke å slette middagen', error);
 }

@@ -90,10 +90,40 @@ export function baseNormalize(raw: string): string {
   return s.trim().replace(/\s+/g, ' ');
 }
 
+/**
+ * Synonymer dere har lagt inn selv, hentet fra databasen ved oppstart.
+ * Tabellen over dekker det vanlige; denne finnes for at dere skal slippe å
+ * be noen endre kode for å legge til «Q-melk».
+ */
+let egneSynonymer: Record<string, string> = {};
+
+/** Kalles én gang ved oppstart. Nøkler og verdier normaliseres her. */
+export function setRuntimeAliases(pairs: readonly { alias: string; canonical: string }[]): void {
+  const next: Record<string, string> = {};
+  for (const pair of pairs) {
+    const from = baseNormalize(pair.alias);
+    const to = baseNormalize(pair.canonical);
+    if (from === '' || to === '' || from === to) continue;
+    next[from] = to;
+  }
+  egneSynonymer = next;
+}
+
 /** Full nøkkel: mekanisk opprydding + synonymoppslag. */
 export function normalizeName(raw: string): string {
-  const base = baseNormalize(raw);
-  return SYNONYMER[base] ?? base;
+  let key = baseNormalize(raw);
+  // Egne synonymer går foran de innebygde, og får lov å peke videre inn i
+  // dem ("qmelk" -> "melk" -> "helmelk"). Begrenset antall hopp, ellers ville
+  // et par som peker på hverandre snurret i ring.
+  const seen = new Set<string>();
+  for (let hop = 0; hop < 3; hop += 1) {
+    if (seen.has(key)) break;
+    seen.add(key);
+    const next = egneSynonymer[key] ?? SYNONYMER[key];
+    if (next === undefined || next === key) break;
+    key = next;
+  }
+  return key;
 }
 
 /** Om to navn regnes som samme vare. */

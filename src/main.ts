@@ -1,11 +1,13 @@
 import { el, replaceChildren } from './dom.ts';
 import * as db from './lib/db.ts';
-import { isCategory, type Meal, type Quantity, type ShoppingItem } from './lib/types.ts';
+import { isCategory, type Meal, type MealDraft, type Quantity, type ShoppingItem } from './lib/types.ts';
 import type { Actions, AppState } from './state.ts';
 import { createListView } from './views/list.ts';
 import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
+import { createMealEditor } from './views/mealEditor.ts';
+import { setRuntimeAliases } from './lib/normalize.ts';
 import { createSetupView } from './views/setup.ts';
 import { applyShareLink, clearConfig, deviceName, isConfigFixed, lastSeenAt, markSeenNow } from './lib/config.ts';
 import { describeChange, summarizeChanges, type ChangeEvent } from './lib/changes.ts';
@@ -45,7 +47,7 @@ function boot(container: HTMLElement): void {
 }
 
 async function start(container: HTMLElement): Promise<void> {
-  const state: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set() };
+  const state: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
   let tab: TabId = 'liste';
 
   const actions: Actions = {
@@ -59,17 +61,24 @@ async function start(container: HTMLElement): Promise<void> {
         }),
       ),
     toggleChecked: (item: ShoppingItem) => run(() => db.setChecked(item.id, !item.checked)),
-    removeItem: (item: ShoppingItem) => run(() => db.removeItem(item.id)),
-    removeChecked: () => run(() => db.removeCheckedItems()),
+    removeItem: (item: ShoppingItem) =>
+      runUndoable(`${item.name} fjernet`, () => db.removeItem(item.id), () => db.restoreItems([item])),
+    removeChecked: () => {
+      const affected = state.items.filter((item) => item.checked);
+      runUndoable(
+        affected.length === 1 ? `1 vare fjernet` : `${affected.length} varer fjernet`,
+        () => db.removeCheckedItems(),
+        () => db.restoreItems(affected),
+      );
+    },
     addFromRegister: (item: ShoppingItem, quantities: Quantity[]) =>
       run(() => db.addFromRegister(item, quantities)),
-    forgetItem: (item: ShoppingItem) => {
-      if (!confirm(`Slette «${item.name}» for godt?`)) return;
-      run(() => db.forgetItem(item.id));
-    },
+    forgetItem: (item: ShoppingItem) =>
+      runUndoable(`${item.name} slettet`, () => db.forgetItem(item.id), () => db.restoreItems([item])),
     clearList: () => {
-      if (!confirm('Tømme hele handlelista?')) return;
-      run(() => db.clearList());
+      const affected = [...state.items];
+      if (affected.length === 0) return;
+      runUndoable('Lista tømt', () => db.clearList(), () => db.restoreItems(affected));
     },
     toggleWeekMeal: (meal: Meal) => {
       const inWeek = state.week.some((entry) => entry.meal_id === meal.id);
@@ -89,7 +98,43 @@ async function start(container: HTMLElement): Promise<void> {
         setTab('liste');
         showStatus(`${added.length} varer lagt til fra ${pending.length} middager`);
       }),
-    clearWeek: () => run(() => db.clearWeek()),
+    clearWeek: () => {
+      const affected = [...state.week];
+      if (affected.length === 0) return;
+      runUndoable('Ukemenyen tømt', () => db.clearWeek(), () => db.restoreWeek(affected));
+    },
+    editItem: (item, patch) =>
+      run(async () => {
+        await db.updateItem(item, patch);
+        setTab(tab);
+      }),
+    addAlias: (alias: string, canonical: string) =>
+      run(async () => {
+        await db.addAlias(alias, canonical);
+        await refreshAliases();
+        showSettings();
+      }),
+    removeAlias: (alias: string) =>
+      run(async () => {
+        await db.removeAlias(alias);
+        await refreshAliases();
+        showSettings();
+      }),
+    editMeal: (meal: Meal | null) => showMealEditor(meal),
+    saveMeal: (draft: MealDraft) =>
+      run(async () => {
+        await db.saveMeal(draft);
+        state.meals = await db.fetchMeals();
+        setTab('middager');
+        showStatus('Middagen er lagret');
+      }),
+    deleteMeal: (meal: Meal) =>
+      run(async () => {
+        await db.deleteMeal(meal.id);
+        state.meals = await db.fetchMeals();
+        setTab('middager');
+        showStatus(`${meal.name} slettet`);
+      }),
     goToList: () => setTab('liste'),
   };
 
@@ -142,6 +187,9 @@ async function start(container: HTMLElement): Promise<void> {
           boot(container);
         },
         close: () => setTab(tab),
+        aliases: state.aliases,
+        addAlias: actions.addAlias,
+        removeAlias: actions.removeAlias,
       }),
     ]);
   }
@@ -149,12 +197,63 @@ async function start(container: HTMLElement): Promise<void> {
   let toastTimer: number | undefined;
   let pending: string[] = [];
 
+  /**
+   * Kjører noe som kan angres. Radene fra før handlingen holdes på til
+   * varselet forsvinner; trykker du «Angre» skrives de tilbake.
+   */
+  function runUndoable(
+    label: string,
+    action: () => Promise<unknown>,
+    undo: () => Promise<unknown>,
+  ): void {
+    void (async () => {
+      try {
+        await action();
+        await reload();
+        offerUndo(label, undo);
+      } catch (error) {
+        showStatus(error instanceof Error ? error.message : 'Noe gikk galt', true);
+      }
+    })();
+  }
+
+  function offerUndo(label: string, undo: () => Promise<unknown>): void {
+    window.clearTimeout(toastTimer);
+    pending = [];
+    replaceChildren(toast, [
+      el('span', { class: 'toast-text', text: label }),
+      el('button', {
+        class: 'toast-undo',
+        text: 'Angre',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            toast.classList.remove('visible');
+            void (async () => {
+              try {
+                await undo();
+                await reload();
+                showStatus('Angret');
+              } catch (error) {
+                showStatus(error instanceof Error ? error.message : 'Klarte ikke å angre', true);
+              }
+            })();
+          },
+        },
+      }),
+    ]);
+    toast.classList.add('visible');
+    window.setTimeout(() => {
+      toast.classList.remove('visible');
+    }, 7000);
+  }
+
   /** Samler endringer som kommer tett, så det blir én melding og ikke fem. */
   function announce(message: string): void {
     pending.push(message);
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => {
-      toast.textContent = summarizeChanges(pending);
+      replaceChildren(toast, [el('span', { class: 'toast-text', text: summarizeChanges(pending) ?? '' })]);
       toast.classList.add('visible');
       pending = [];
       window.setTimeout(() => toast.classList.remove('visible'), 4000);
@@ -180,6 +279,24 @@ async function start(container: HTMLElement): Promise<void> {
     replaceChildren(content, [views[tab].element]);
     views[tab].update(state);
     content.scrollTo({ top: 0 });
+  }
+
+  function showMealEditor(meal: Meal | null): void {
+    for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
+    replaceChildren(content, [
+      createMealEditor(meal, {
+        save: actions.saveMeal,
+        remove: actions.deleteMeal,
+        close: () => setTab('middager'),
+      }),
+    ]);
+    content.scrollTo({ top: 0 });
+  }
+
+  /** Synonymene må inn i normalizeName før noe slås sammen. */
+  async function refreshAliases(): Promise<void> {
+    state.aliases = await db.fetchAliases();
+    setRuntimeAliases(state.aliases);
   }
 
   function refreshView(): void {
@@ -233,6 +350,7 @@ async function start(container: HTMLElement): Promise<void> {
   showStatus('Kobler til …');
 
   try {
+    await refreshAliases();
     state.meals = await db.fetchMeals();
     await reload();
   } catch (error) {

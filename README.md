@@ -19,9 +19,10 @@ For ekte, delt liste:
 
 1. Lag et gratis prosjekt på [supabase.com](https://supabase.com).
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
-   Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet:
-   `03_history.sql` og `04_notifications.sql`. De legger bare til det som er
-   nytt, og er trygge å kjøre flere ganger.
+   Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
+   rekkefølge: `03_history.sql`, `04_notifications.sql`,
+   `05_edit_undo_aliases.sql`. De legger bare til det som er nytt, og er
+   trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -108,6 +109,7 @@ realtime på seg). `week_plan_items` er ukemenyen.
 | `use_count` | integer | hvor mange ganger varen har vært lagt til; sorterer historikken |
 | `last_used_at` | timestamptz | sist varen ble lagt til eller fjernet |
 | `updated_by` | text | navnet på telefonen som sist skrev til raden |
+| `version` | integer | telles opp av en trigger; grunnlaget for sammenlign-og-bytt |
 | `source_meals` | text[] | `{Lasagne,Fiskesuppe}` — vises som "fra Lasagne, Fiskesuppe". Tom = lagt inn manuelt |
 | `note` | text | fritekst, f.eks. "den billige" |
 | `created_at` / `updated_at` | timestamptz | `updated_at` settes av trigger |
@@ -124,6 +126,11 @@ Kategorier: `grønt` `kjøtt` `fisk` `meieri` `tørrvarer` `frys` `bakeri` `anne
 
 Kjernekravet: to middager som bruker helmelk skal gi **én** linje.
 
+Navnene i registeret foreslås mens du skriver, og en rad på lista kan endres
+i ettertid — navn, mengde og kategori — via `⋯` på raden. Sletting ligger
+inne i det skjemaet, ikke som en knapp ved siden av avhukingen, og alt som
+fjerner noe kan angres i noen sekunder etterpå.
+
 **1. Navn → nøkkel.** `normalize(name)`: små bokstaver, trim, kollaps
 mellomrom, fjern bindestreker/punktum, fjern aksenter (`crème` → `creme`),
 og til slutt slå opp i en synonymtabell. Synonymtabellen er den som gjør
@@ -137,8 +144,11 @@ hakkede tomater | knuste tomater -> hermetiske tomater
 ...
 ```
 
-Den er en ren datatabell i klienten, lett å utvide når dere oppdager en
-variant som ikke matcher.
+Den er en ren datatabell i klienten. Egne varianter legges til i appen under
+tannhjulet og lagres i `ingredient_aliases`; de leses ved oppstart og går
+foran de innebygde. De får peke videre inn i dem («qmelk» → «melk» →
+«helmelk»), med et tak på antall hopp så et par som peker på hverandre ikke
+snurrer i ring.
 
 **2. Mengde → felles enhet.** Enheter grupperes i dimensjoner:
 
@@ -162,11 +172,16 @@ som flere elementer i `quantities` på **samme rad**, og vises som
 **5. Mengde uten tall.** `amount = null` ("etter smak") legger seg på lista
 uten mengde og blokkerer ikke sammenslåing av de andre bidragene.
 
-Sammenslåingen skjer i klienten (`src/lib/merge.ts`): les eksisterende rad på
-`normalized_name`, slå sammen, skriv tilbake. Den unike indeksen er
-sikkerhetsnettet — hvis dere skulle treffe samtidig, feiler den ene
-innsettingen med `23505`, og `db.ts` leser da på nytt og fletter mot raden
-som nå finnes.
+Sammenslåingen regnes ut i klienten (`src/lib/merge.ts`): les eksisterende rad
+på `normalized_name`, slå sammen, skriv tilbake.
+
+Mellom lesing og skriving kan den andre telefonen ha endret raden. Derfor er
+skrivingen en **sammenlign-og-bytt**: den skjer bare hvis `version` fortsatt
+er den vi leste. Ellers treffer den ingen rader, og runden går om igjen mot
+det som faktisk står der nå — i stedet for å skrive over det de rakk. Fire
+forsøk, så gir den opp med en melding. Ved innsetting gjør den unike indeksen
+samme jobb: `23505` betyr at noen kom først, og varen slås sammen mot deres
+rad i neste runde.
 
 En vare som allerede er huket av, blir haket av igjen når det legges til mer
 av den. Trenger dere mer melk enn dere alt har krysset ut, må det synes at
@@ -187,8 +202,16 @@ src/lib/changes.ts     endring -> setning ("Kari handlet Melk"), ren
 src/lib/changes.test.ts tester av det over
 src/lib/db.ts          Supabase-kall og realtime
 src/lib/db.mock.ts     samme API i minnet, for npm run dev:mock
-src/views/             liste, middager, uke, varer
+src/views/             liste, middager, uke, varer, middagsredigering
 ```
+
+## Egne middager
+
+De 19 middagene er et utgangspunkt, ikke fasiten. «+ Ny» under Middager, og
+«Endre oppskriften» inne i et kort, skriver rett til `meals` og
+`meal_ingredients`. Ingrediensene skrives om i sin helhet ved lagring
+framfor å flettes rad for rad — en oppskrift er liten, og «slett alt og skriv
+nytt» kan ikke etterlate en ingrediens du fjernet i skjemaet.
 
 ## Vareregisteret
 

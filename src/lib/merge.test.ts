@@ -54,6 +54,7 @@ function listItem(
     use_count: 1,
     last_used_at: '',
     updated_by: null,
+    version: 0,
     source_meals: sourceMeals,
     note: null,
     created_at: '',

@@ -8,6 +8,9 @@ import { buildShareLink, deviceName, isConfigFixed, loadConfig, setDeviceName } 
 export function createSettingsView(actions: {
   changeKeys: () => void;
   close: () => void;
+  aliases: { alias: string; canonical: string }[];
+  addAlias: (alias: string, canonical: string) => void;
+  removeAlias: (alias: string) => void;
 }): HTMLElement {
   const config = loadConfig();
   const link = config === null ? null : buildShareLink(config);
@@ -70,6 +73,15 @@ export function createSettingsView(actions: {
     copyButton,
     feedback,
     el('hr'),
+    el('h2', { class: 'view-title', text: 'Samme vare, ulike navn' }),
+    el('p', {
+      class: 'fine-print',
+      text:
+        'Appen kjenner de vanligste variantene fra før. Her legger dere til deres egne, ' +
+        'så «Q-melk» havner på samme linje som «Helmelk» i stedet for å bli en linje til.',
+    }),
+    aliasList(actions),
+    el('hr'),
     el('p', {
       class: 'fine-print',
       text: `Koblet til ${config?.url ?? 'ingenting'}`,
@@ -82,6 +94,52 @@ export function createSettingsView(actions: {
         on: { click: actions.changeKeys },
       }),
     el('button', { class: 'ghost', text: 'Tilbake', attrs: { type: 'button' }, on: { click: actions.close } }),
+  ]);
+}
+
+function aliasList(actions: {
+  aliases: { alias: string; canonical: string }[];
+  addAlias: (alias: string, canonical: string) => void;
+  removeAlias: (alias: string) => void;
+}): HTMLElement {
+  const from = el('input', {
+    class: 'grow',
+    attrs: { type: 'text', placeholder: 'Skriver du dette', 'aria-label': 'Navnet som skal oversettes', autocomplete: 'off' },
+  });
+  const to = el('input', {
+    class: 'grow',
+    attrs: { type: 'text', placeholder: 'blir det dette', 'aria-label': 'Navnet det er samme som', autocomplete: 'off' },
+  });
+
+  return el('div', { class: 'alias-block' }, [
+    el(
+      'ul',
+      { class: 'alias-list' },
+      actions.aliases.map((row) =>
+        el('li', {}, [
+          el('span', { text: `${row.alias} → ${row.canonical}` }),
+          el('button', {
+            class: 'item-remove',
+            text: '×',
+            attrs: { type: 'button', 'aria-label': `Slett ${row.alias}` },
+            on: { click: () => actions.removeAlias(row.alias) },
+          }),
+        ]),
+      ),
+    ),
+    el('div', { class: 'row' }, [from, to]),
+    el('button', {
+      class: 'ghost',
+      text: '+ Legg til',
+      attrs: { type: 'button' },
+      on: {
+        click: () => {
+          actions.addAlias(from.value, to.value);
+          from.value = '';
+          to.value = '';
+        },
+      },
+    }),
   ]);
 }
 

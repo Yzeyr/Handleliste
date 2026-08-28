@@ -75,6 +75,11 @@ create table if not exists public.shopping_list_items (
   -- Navnet på telefonen som sist skrev til raden, så appen kan si
   -- "Kari la til melk" i stedet for bare "lista er endret".
   updated_by       text,
+  -- Telles opp av en trigger ved hver endring. Klienten bruker den til
+  -- sammenlign-og-bytt: en oppdatering som bygger på en utdatert versjon
+  -- treffer ingen rader, og leses da på nytt i stedet for å overskrive det
+  -- den andre telefonen rakk å skrive.
+  version          integer not null default 0,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
@@ -86,10 +91,12 @@ create unique index if not exists shopping_list_items_normalized_name_key
 create index if not exists shopping_list_items_archived_idx
   on public.shopping_list_items (archived, use_count desc, last_used_at desc);
 
--- updated_at settes av databasen, ikke av klienten
-create or replace function public.touch_updated_at()
+-- updated_at og version settes av databasen, ikke av klienten, slik at de
+-- gjelder uansett hvilken vei en endring kom inn.
+create or replace function public.bump_version()
 returns trigger language plpgsql as $$
 begin
+  new.version = old.version + 1;
   new.updated_at = now();
   return new;
 end;
@@ -98,7 +105,19 @@ $$;
 drop trigger if exists shopping_list_items_touch on public.shopping_list_items;
 create trigger shopping_list_items_touch
   before update on public.shopping_list_items
-  for each row execute function public.touch_updated_at();
+  for each row execute function public.bump_version();
+
+-- ---------------------------------------------------------------------------
+-- ingredient_aliases — "dette navnet betyr egentlig det navnet"
+--
+-- Motstykket til synonymtabellen i koden: den dekker det vanlige, denne lar
+-- dere legge til deres egne uten at noen må endre kode og bygge på nytt.
+-- ---------------------------------------------------------------------------
+create table if not exists public.ingredient_aliases (
+  alias      text primary key,
+  canonical  text not null,
+  created_at timestamptz not null default now()
+);
 
 -- ---------------------------------------------------------------------------
 -- week_plan_items — "denne uken skal vi ha ..."
@@ -134,6 +153,7 @@ alter publication supabase_realtime add table public.week_plan_items;
 -- kan stramme det til med magic-link-innlogging senere.
 -- ---------------------------------------------------------------------------
 alter table public.meals               enable row level security;
+alter table public.ingredient_aliases  enable row level security;
 alter table public.meal_ingredients    enable row level security;
 alter table public.shopping_list_items enable row level security;
 alter table public.week_plan_items     enable row level security;
@@ -148,6 +168,10 @@ create policy "husholdning full tilgang" on public.meal_ingredients
 
 drop policy if exists "husholdning full tilgang" on public.shopping_list_items;
 create policy "husholdning full tilgang" on public.shopping_list_items
+  for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "husholdning full tilgang" on public.ingredient_aliases;
+create policy "husholdning full tilgang" on public.ingredient_aliases
   for all to anon, authenticated using (true) with check (true);
 
 drop policy if exists "husholdning full tilgang" on public.week_plan_items;
