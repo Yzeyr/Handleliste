@@ -23,6 +23,7 @@ export interface Actions {
   addWeekToList: () => void;
   clearWeek: () => void;
   goToList: () => void;
+  startShopping: () => void;
   editItem: (item: ShoppingItem, patch: { name: string; category: Category; quantities: Quantity[] }) => void;
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;

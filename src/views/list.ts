@@ -103,9 +103,10 @@ export function createListView(actions: Actions): View<AppState> {
   );
 
   const banner = el('div');
+  const shoppingEntry = el('div');
   const body = el('div', { class: 'list-body' });
   const footer = el('div', { class: 'list-footer' });
-  const element = el('section', { class: 'view' }, [form, banner, body, footer]);
+  const element = el('section', { class: 'view' }, [form, shoppingEntry, banner, body, footer]);
 
   function update(state: AppState): void {
     replaceChildren(
@@ -142,6 +143,19 @@ export function createListView(actions: Actions): View<AppState> {
         ),
       );
     }
+
+    // Inngangen til handlemodus står øverst, ikke i bunnen: du åpner appen i
+    // butikkdøra og skal ikke måtte scrolle forbi hele lista for å finne den.
+    const igjen = state.items.filter((item) => !item.checked).length;
+    replaceChildren(shoppingEntry, [
+      igjen > 0 &&
+        el('button', {
+          class: 'outline wide',
+          text: `🛒 Start handling · ${igjen} ${igjen === 1 ? 'vare' : 'varer'}`,
+          attrs: { type: 'button' },
+          on: { click: () => actions.startShopping() },
+        }),
+    ]);
 
     const unseenCount = state.items.filter((item) => state.unseen.has(item.id)).length;
     replaceChildren(banner, [

@@ -216,6 +216,25 @@ De 19 middagene er et utgangspunkt, ikke fasiten. «+ Ny» under Middager, og
 framfor å flettes rad for rad — en oppskrift er liten, og «slett alt og skriv
 nytt» kan ikke etterlate en ingrediens du fjernet i skjemaet.
 
+## Handlemodus
+
+«🛒 Start handling» øverst på lista tar over hele skjermen. Faner, skjema,
+tannhjul og radmenyer forsvinner; igjen står store rader med navn og mengde,
+gruppert i den rekkefølgen man går gjennom butikken, og «7 / 17 varer» med en
+framdriftsstripe øverst.
+
+Avhukede varer blir stående der de er, gjennomstreket. De samler seg ikke i
+bunnen — å beholde butikkrekkefølgen er mer verdt enn å rydde dem unna, og
+det er greit å se hva man har tatt.
+
+Er alt haket av, tilbyr den «Rydd bort og avslutt», som arkiverer varene
+(altså rett i vareregisteret) og går ut av modusen.
+
+Modusen ligger i `localStorage`, så en omlasting midt i butikken ikke kaster
+deg ut av den, og appen ber om `wakeLock` mens den er på — en telefon som
+låser seg mellom hver vare er den raskeste måten å gjøre en handleliste
+ubrukelig på. Støttes ikke overalt, og da oppfører den seg som før.
+
 ## Vareregisteret
 
 Varer slettes ikke når de fjernes fra lista — de settes `archived = true`.

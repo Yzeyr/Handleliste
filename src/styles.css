@@ -516,3 +516,103 @@ textarea {
 .setup-form .primary { margin-top: 12px; }
 .form-error { color: var(--danger); font-size: 14px; margin: 6px 0 0; min-height: 1em; }
 .fine-print { font-size: 13px; color: var(--muted); }
+
+/* ---------- handlemodus ---------- */
+
+/* Faner, tannhjul og varsler hører ikke hjemme her. Skjermen skal bare
+   svare på ett spørsmål: hva mangler jeg, og har jeg tatt det? */
+.shopping-mode .tabs,
+.shopping-mode .settings-button,
+.shopping-mode .status { display: none; }
+
+.shopping { display: flex; flex-direction: column; gap: 18px; }
+
+.shopping-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.progress-text {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+
+.shopping-body { display: flex; flex-direction: column; gap: 20px; }
+
+.shopping-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.shopping-item { border-bottom: 1px solid var(--line); }
+.shopping-item:last-child { border-bottom: none; }
+
+.shopping-tap {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 14px 16px;
+}
+
+.big-tick {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.shopping-name { flex: 1; min-width: 0; font-size: 19px; font-weight: 500; }
+
+.shopping-qty {
+  flex: none;
+  font-size: 17px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.shopping-item.checked { opacity: 0.4; }
+.shopping-item.checked .big-tick { border-color: var(--accent); }
+.shopping-item.checked .shopping-name,
+.shopping-item.checked .shopping-qty { text-decoration: line-through; }
+
+.shopping-footer { display: flex; flex-direction: column; gap: 8px; }
+.all-done { margin: 0; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+}

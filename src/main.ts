@@ -8,6 +8,7 @@ import { createListView } from './views/list.ts';
 import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
+import { createShoppingView } from './views/shopping.ts';
 import { createMealEditor } from './views/mealEditor.ts';
 import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
 import { watchForAppUpdate } from './lib/appUpdate.ts';
@@ -20,6 +21,40 @@ import { createSettingsButton, createSettingsView } from './views/settings.ts';
 import { resetClient } from './lib/supabase.ts';
 
 type TabId = 'liste' | 'middager' | 'uke' | 'varer';
+
+const SHOPPING_KEY = 'handleliste.handlemodus';
+
+function readShoppingMode(): boolean {
+  try {
+    return window.localStorage.getItem(SHOPPING_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Holder skjermen våken mens man handler. En telefon som låser seg mellom
+ * hver vare er den raskeste måten å gjøre en handleliste ubrukelig på.
+ * Støttes ikke overalt, og det er helt greit — da oppfører den seg som før.
+ */
+let screenLock: { release: () => Promise<void> } | null = null;
+
+async function keepScreenAwake(): Promise<void> {
+  try {
+    const anyNavigator = navigator as Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
+    };
+    if (anyNavigator.wakeLock === undefined) return;
+    screenLock = await anyNavigator.wakeLock.request('screen');
+  } catch {
+    screenLock = null;
+  }
+}
+
+function releaseScreenLock(): void {
+  void screenLock?.release().catch(() => undefined);
+  screenLock = null;
+}
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'liste', label: 'Liste' },
@@ -211,7 +246,10 @@ async function start(container: HTMLElement): Promise<void> {
         showStatus(`${meal.name} slettet`);
       }),
     goToList: () => setTab('liste'),
+    startShopping: () => setShopping(true),
   };
+
+  const shoppingView = createShoppingView(actions, () => setShopping(false));
 
   const views = {
     liste: createListView(actions),
@@ -357,7 +395,34 @@ async function start(container: HTMLElement): Promise<void> {
     }, isError ? 8000 : 3000);
   }
 
+  let shopping = readShoppingMode();
+
+  /**
+   * Handlemodus overtar hele skjermen. Den lagres på telefonen, så en
+   * omlasting midt i butikken ikke kaster deg ut av den.
+   */
+  function setShopping(on: boolean): void {
+    shopping = on;
+    try {
+      if (on) window.localStorage.setItem(SHOPPING_KEY, '1');
+      else window.localStorage.removeItem(SHOPPING_KEY);
+    } catch {
+      /* uten lagring virker modusen fortsatt, den bare glemmes ved omlasting */
+    }
+    container.classList.toggle('shopping-mode', on);
+    if (on) {
+      void keepScreenAwake();
+      replaceChildren(content, [shoppingView.element]);
+      shoppingView.update(state);
+      content.scrollTo({ top: 0 });
+    } else {
+      releaseScreenLock();
+      setTab(tab);
+    }
+  }
+
   function setTab(next: TabId): void {
+    if (shopping) return;
     tab = next;
     for (const button of tabBar.querySelectorAll('.tab')) {
       button.classList.toggle('active', button.getAttribute('data-tab') === tab);
@@ -393,7 +458,8 @@ async function start(container: HTMLElement): Promise<void> {
   }
 
   function refreshView(): void {
-    views[tab].update(state);
+    if (shopping) shoppingView.update(state);
+    else views[tab].update(state);
   }
 
   /** Fyller skjermtilstanden fra den lokale kopien. Ingen nettverk her. */
@@ -465,6 +531,7 @@ async function start(container: HTMLElement): Promise<void> {
   store.watchConnection();
   store.subscribe(readFromStore);
   setTab('liste');
+  if (shopping) setShopping(true);
   readFromStore();
 
   useAliases(store.allAliases());
