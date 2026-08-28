@@ -141,6 +141,13 @@ button { cursor: pointer; }
 
 .wide { width: 100%; }
 
+.outline {
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 10px 4px; }
 .ghost.danger { color: var(--danger); }
 

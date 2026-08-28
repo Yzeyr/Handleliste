@@ -20,15 +20,15 @@ export function createMealsView(actions: Actions): View<AppState> {
 
   const body = el('div', { class: 'meals-body' });
   const element = el('section', { class: 'view' }, [
-    el('div', { class: 'row' }, [
-      search,
-      el('button', {
-        class: 'primary',
-        text: '+ Ny',
-        attrs: { type: 'button', 'aria-label': 'Ny middag' },
-        on: { click: () => actions.editMeal(null) },
-      }),
-    ]),
+    el('div', { class: 'row' }, [search]),
+    // Egen rad og hele bredden: en knapp som het "+ Ny" ved siden av søkefeltet
+    // sa ingenting om hva som ble ny, og brakk over to linjer på telefon.
+    el('button', {
+      class: 'outline wide',
+      text: '+ Lag egen middag',
+      attrs: { type: 'button' },
+      on: { click: () => actions.editMeal(null) },
+    }),
     body,
   ]);
 
