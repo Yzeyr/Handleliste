@@ -2,6 +2,7 @@ import { el, replaceChildren, type View } from '../dom.ts';
 import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem } from '../lib/types.ts';
 import { parseIngredientLine } from '../lib/parseRecipe.ts';
 import { categoryForName } from '../lib/facts.ts';
+import { normalizeName } from '../lib/normalize.ts';
 import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
@@ -44,6 +45,16 @@ export function createListView(actions: Actions): View<AppState> {
         suggestionsOpen = true;
         renderSuggestions();
       },
+      paste: (event: ClipboardEvent) => {
+        const text = event.clipboardData?.getData('text') ?? '';
+        const lines = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== '');
+        if (lines.length < 2) return; // én linje er en vanlig liming
+        event.preventDefault();
+        pasted = lines;
+        suggestionsOpen = false;
+        renderSuggestions();
+        renderPasteBox();
+      },
     },
   });
 
@@ -69,6 +80,77 @@ export function createListView(actions: Actions): View<AppState> {
   ]);
 
   const preview = el('p', { class: 'add-preview' });
+
+  /**
+   * En hel ingrediensliste limt inn i skrivefeltet.
+   *
+   * Et <input> er én linje: limer du inn elleve, slår nettleseren dem sammen
+   * til én lang streng, og du sitter igjen med én meningsløs vare. Derfor
+   * leses utklippstavla direkte, og limingen stanses før den når feltet.
+   *
+   * Elleve varer skal ikke føyes til lista i det stille bare fordi en finger
+   * traff «lim inn». Du får se hva som kommer, og bekrefte.
+   */
+  let pasted: string[] = [];
+  const pasteBox = el('div', { class: 'paste-box' });
+
+  function renderPasteBox(): void {
+    if (pasted.length === 0) {
+      replaceChildren(pasteBox, []);
+      pasteBox.classList.remove('visible');
+      return;
+    }
+    // Samme telling som skrivingen gjør: nevner lista løk to ganger, blir det
+    // én vare. Boksen skal ikke love tre og legge til to.
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const line of pasted) {
+      const name = parseIngredientLine(line)?.name ?? line.trim();
+      const key = normalizeName(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+
+    pasteBox.classList.add('visible');
+    replaceChildren(pasteBox, [
+      el('p', {
+        class: 'paste-title',
+        text: `${names.length} ${names.length === 1 ? 'vare' : 'varer'} fra det du limte inn`,
+      }),
+      el('p', { class: 'paste-names', text: names.join(' · ') }),
+      el('div', { class: 'row' }, [
+        el('button', {
+          class: 'primary grow',
+          text: 'Legg til alle',
+          attrs: { type: 'button' },
+          on: { click: () => addPasted() },
+        }),
+        el('button', {
+          class: 'ghost',
+          text: 'Avbryt',
+          attrs: { type: 'button' },
+          on: {
+            click: () => {
+              pasted = [];
+              renderPasteBox();
+            },
+          },
+        }),
+      ]),
+    ]);
+  }
+
+  function addPasted(): void {
+    if (pasted.length === 0) return;
+    actions.addPastedLines(pasted);
+    pasted = [];
+    renderPasteBox();
+    nameInput.value = '';
+    preview.textContent = '';
+    suggestionsOpen = false;
+    renderSuggestions();
+  }
 
   /**
    * Varer du har hatt på lista før, nyeste først, rett under skrivefeltet.
@@ -175,6 +257,9 @@ export function createListView(actions: Actions): View<AppState> {
   }
 
   function submit(): void {
+    // Står en innliming og venter, er det den enteren gjelder.
+    if (pasted.length > 0) return addPasted();
+
     const parsed = read();
     if (parsed === null) return;
 
@@ -248,7 +333,7 @@ export function createListView(actions: Actions): View<AppState> {
   const shoppingEntry = el('div');
   const body = el('div', { class: 'list-body' });
   const footer = el('div', { class: 'list-footer' });
-  const element = el('section', { class: 'view' }, [form, shoppingEntry, banner, body, footer]);
+  const element = el('section', { class: 'view' }, [form, pasteBox, shoppingEntry, banner, body, footer]);
 
   function update(state: AppState): void {
     current = state;

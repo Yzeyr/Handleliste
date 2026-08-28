@@ -352,6 +352,35 @@ deg ut av den, og appen ber om `wakeLock` mens den er på — en telefon som
 låser seg mellom hver vare er den raskeste måten å gjøre en handleliste
 ubrukelig på. Støttes ikke overalt, og da oppfører den seg som før.
 
+## Lime inn en hel liste i skrivefeltet
+
+Limer du flere linjer inn i «Legg til vare», leses de som en ingrediensliste:
+
+```
+800 g benfri høyrygg av storfekjøtt , evt. bog
+2 ss smør , til steking
+0,5 stk. purre
+```
+
+Et `<input>` er én linje, så nettleseren ville slått elleve linjer sammen til
+én lang, meningsløs vare. Derfor leses utklippstavla direkte i `paste`, og
+limingen stanses før den når feltet.
+
+Elleve varer skal ikke føyes til lista i stillhet fordi en finger traff «lim
+inn». Du får se hva som kommer, og bekrefte. Boksen teller det samme som
+skrivingen gjør: nevner lista løk to ganger, står det én vare — den skal ikke
+love tre og legge til to.
+
+**Tilberedning strippes fra navnet.** «Smør, til steking» og «potet i
+terninger» er samme vare som «smør» og «potet» — én ting i butikken. Blir
+tilberedningen stående, ryker sammenslåingen: to oppskrifter med potet gir to
+linjer, og «potet i terninger» finner aldri poteten fra forrige uke.
+
+Alt etter et komma ryker. Ellers er det en kort liste over tilberedninger, ikke
+et forsøk på å forstå språk: « i » alene er for farlig, siden «makrell i tomat»
+er en vare i seg selv. Dekket av test, sammen med at «revet ost» og «hakkede
+tomater» står urørt.
+
 ## Lime inn en oppskrift
 
 Under Middager: «eller lim inn en oppskrift». Marker oppskriften på en

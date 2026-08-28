@@ -1,7 +1,7 @@
 import { el, replaceChildren } from './dom.ts';
 import * as db from './lib/db.ts';
 import * as store from './lib/offlineStore.ts';
-import { itemsFromMeals } from './lib/merge.ts';
+import { itemsFromMeals, mergePending } from './lib/merge.ts';
 import { isCategory, type Meal, type MealDraft, type Quantity, type ShoppingItem } from './lib/types.ts';
 import type { Actions, AppState } from './state.ts';
 import { createListView } from './views/list.ts';
@@ -12,6 +12,8 @@ import { createShoppingView } from './views/shopping.ts';
 import { createMealEditor } from './views/mealEditor.ts';
 import { createPasteRecipeView } from './views/pasteRecipe.ts';
 import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
+import { parseIngredientLine } from './lib/parseRecipe.ts';
+import { categoryForName } from './lib/facts.ts';
 import { watchForAppUpdate } from './lib/appUpdate.ts';
 import { normalizeUnit } from './lib/units.ts';
 import type { Intent } from './lib/intent.ts';
@@ -172,6 +174,40 @@ async function start(container: HTMLElement): Promise<void> {
             },
           ],
           newIds: [crypto.randomUUID()],
+          mealIds: [],
+        };
+      }),
+    /**
+     * En hel ingrediensliste limt inn i skrivefeltet. Linjer som ikke har en
+     * mengde tas med som de er — «brød» er en gyldig handlelinje.
+     */
+    addPastedLines: (lines: readonly string[]) =>
+      queue(() => {
+        const pending = mergePending(
+          lines.flatMap((line) => {
+            const text = line.trim();
+            if (text === '') return [];
+            const parsed = parseIngredientLine(text);
+            const name = parsed?.name ?? text.charAt(0).toUpperCase() + text.slice(1);
+            return [
+              {
+                normalizedName: normalizeName(name),
+                name,
+                quantities:
+                  parsed?.amount == null
+                    ? []
+                    : [{ amount: parsed.amount, unit: normalizeUnit(parsed.unit ?? 'stk') }],
+                category: categoryForName(name, state.items.concat(state.register)),
+                sourceMeals: [] as string[],
+              },
+            ];
+          }),
+        );
+        if (pending.length === 0) return null;
+        return {
+          kind: 'addPending',
+          pending,
+          newIds: pending.map(() => crypto.randomUUID()),
           mealIds: [],
         };
       }),

@@ -14,6 +14,7 @@ export interface AppState {
 
 export interface Actions {
   addManual: (input: { name: string; amount: number | null; unit: string; category: string }) => void;
+  addPastedLines: (lines: readonly string[]) => void;
   toggleChecked: (item: ShoppingItem) => void;
   removeItem: (item: ShoppingItem) => void;
   removeChecked: () => void;

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseRecipe } from './parseRecipe.ts';
+import { cleanIngredientName, parseRecipe } from './parseRecipe.ts';
 
 const kort = (r: ReturnType<typeof parseRecipe>) =>
   r.draft.ingredients.map((i) => `${i.name} ${i.amount ?? '—'} ${i.unit ?? ''}`.trim());
@@ -140,4 +140,30 @@ test('feltet forstår tall uten enhet', () => {
 test('bare et navn gir ingen tolkning, og skal brukes som det er', () => {
   assert.equal(linje('Melk'), null);
   assert.equal(linje('Toalettpapir'), null);
+});
+
+test('tilberedning hører ikke hjemme i et varenavn', () => {
+  assert.equal(cleanIngredientName('smør , til steking'), 'smør');
+  assert.equal(cleanIngredientName('benfri høyrygg av storfekjøtt , evt. bog'), 'benfri høyrygg av storfekjøtt');
+  assert.equal(cleanIngredientName('potet i terninger'), 'potet');
+  assert.equal(cleanIngredientName('gulrot i små terninger'), 'gulrot');
+  assert.equal(cleanIngredientName('løk finhakket'), 'løk');
+  assert.equal(cleanIngredientName('kjøttdeig (ca. 400 g)'), 'kjøttdeig');
+});
+
+test('et varenavn som bare ser ut som tilberedning står urørt', () => {
+  // «makrell i tomat» er en vare i seg selv, ikke makrell som er tilberedt.
+  assert.equal(cleanIngredientName('makrell i tomat'), 'makrell i tomat');
+  assert.equal(cleanIngredientName('revet ost'), 'revet ost');
+  assert.equal(cleanIngredientName('hakkede tomater'), 'hakkede tomater');
+});
+
+test('tilberedningen fjernes også når linja tolkes som ingrediens', () => {
+  assert.deepEqual(parseIngredientLine('2 ss smør , til steking'), {
+    name: 'Smør',
+    amount: 2,
+    unit: 'ss',
+    category: 'meieri',
+  });
+  assert.equal(parseIngredientLine('800 g potet i terninger')?.name, 'Potet');
 });

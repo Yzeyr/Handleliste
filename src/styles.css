@@ -107,6 +107,22 @@ body {
 
 .card-file { padding: 10px; }
 
+/* Innliming av en hel ingrediensliste. Ligger i flyten, ikke som et panel
+   oppå lista: her skal du lese før du bekrefter, ikke treffe et mål. */
+.paste-box {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.paste-box.visible { display: flex; }
+.paste-title { margin: 0; font-weight: 600; font-size: 15px; }
+.paste-names { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+
 .crop-wrap { display: flex; flex-direction: column; gap: 8px; }
 /* Uten dette vinner display:flex over nettleserens [hidden], og skjemaet blir
    stående etter lagring. */

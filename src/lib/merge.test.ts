@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { itemsFromMeals, mergeQuantities, planListChange } from './merge.ts';
+import { itemsFromMeals, mergePending, mergeQuantities, planListChange } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { formatQuantities } from './units.ts';
 import type { Meal, MealIngredient, Quantity, ShoppingItem } from './types.ts';
@@ -250,4 +250,27 @@ test('en arkivert vare bidrar ikke med gammel mengde', () => {
   assert.equal(change.updates.length, 1);
   assert.equal(show(change.updates[0]!.quantities), '5 dl');
   assert.deepEqual(change.updates[0]!.sourceMeals, ['Fiskesuppe'], 'gammelt middagsopphav skal ikke henge ved');
+});
+
+test('mergePending slår sammen linjer som viser til samme vare', () => {
+  const merged = mergePending([
+    { normalizedName: 'melk', name: 'Melk', quantities: [{ amount: 2, unit: 'dl' }], category: 'meieri', sourceMeals: [] },
+    { normalizedName: 'melk', name: 'H-melk', quantities: [{ amount: 3, unit: 'dl' }], category: 'meieri', sourceMeals: [] },
+    { normalizedName: 'brod', name: 'Brød', quantities: [{ amount: 1, unit: 'stk' }], category: 'bakeri', sourceMeals: [] },
+  ]);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0]?.name, 'Melk');
+  assert.deepEqual(merged[0]?.quantities, [{ amount: 5, unit: 'dl' }]);
+});
+
+test('mergePending rører ikke listene den fikk inn', () => {
+  const original = {
+    normalizedName: 'melk',
+    name: 'Melk',
+    quantities: [{ amount: 2, unit: 'dl' }],
+    category: 'meieri' as const,
+    sourceMeals: [] as string[],
+  };
+  mergePending([original, { ...original, quantities: [{ amount: 3, unit: 'dl' }] }]);
+  assert.deepEqual(original.quantities, [{ amount: 2, unit: 'dl' }]);
 });

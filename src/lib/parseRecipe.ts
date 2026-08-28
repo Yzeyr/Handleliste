@@ -158,11 +158,7 @@ export function parseIngredientLine(line: string): MealDraft['ingredients'][numb
     rest = rest.slice(firstWord[0].length).trim();
   }
 
-  // "(ca. 400 g)" og liknende presiseringer hører ikke hjemme i navnet.
-  const name = rest
-    .replace(/\s*\([^)]*\)\s*/g, ' ')
-    .replace(/^(av|med)\s+/i, '')
-    .trim();
+  const name = cleanIngredientName(rest);
   if (name === '') return null;
 
   return {
@@ -171,6 +167,32 @@ export function parseIngredientLine(line: string): MealDraft['ingredients'][numb
     unit,
     category: guessCategory(name),
   };
+}
+
+/**
+ * Måten en oppskrift er forberedt på hører ikke hjemme i et varenavn.
+ *
+ * «Smør, til steking» og «potet i terninger» er samme vare som «smør» og
+ * «potet» — det er én ting i butikken. Blir tilberedningen stående i navnet,
+ * ryker sammenslåingen: to oppskrifter med potet gir to linjer, og «potet i
+ * terninger» finner aldri poteten du kjøpte forrige uke.
+ *
+ * Alt etter et komma ryker. Ellers er det en kort liste over tilberedninger,
+ * ikke et forsøk på å forstå språk: « i » alene er for farlig, siden
+ * «makrell i tomat» er en vare i seg selv.
+ */
+const PREPARATION =
+  /\s+(i (?:små |grove |tynne )?(?:terninger|skiver|biter|strimler|båter|staver|ringer)|finhakket|grovhakket|hakket|oppdelt|opphakket|skrelt|skrellet|revet|smeltet|romtemperert|til steking|til pynt|til servering)\s*$/i;
+
+export function cleanIngredientName(raw: string): string {
+  return raw
+    // "(ca. 400 g)" og liknende presiseringer hører ikke hjemme i navnet.
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    // Alt etter kommaet er en presisering: «, evt. bog», «, til steking».
+    .replace(/\s*,.*$/, '')
+    .replace(/^(av|med)\s+/i, '')
+    .replace(PREPARATION, '')
+    .trim();
 }
 
 /** "500", "1,5", "½", "1 ½", "400–600" (laveste tall brukes). */

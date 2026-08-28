@@ -65,34 +65,48 @@ export interface PendingItem {
  * Ingredienser uten mengde ("etter smak") tas med som linje uten mengde, og
  * hindrer ikke at de andre bidragene til samme vare summeres.
  */
-export function itemsFromMeals(meals: readonly Meal[]): PendingItem[] {
+/**
+ * Slår sammen linjer som viser til samme vare, før de i det hele tatt møter
+ * lista. Tre middager med melk skal være én linje allerede her, og det samme
+ * gjelder en innlimt liste som nevner løk to ganger.
+ */
+export function mergePending(items: readonly PendingItem[]): PendingItem[] {
   const byName = new Map<string, PendingItem>();
 
-  for (const meal of meals) {
-    for (const ingredient of meal.ingredients) {
-      const key = normalizeName(ingredient.name);
-      const quantity: Quantity[] =
-        ingredient.amount === null
-          ? []
-          : [{ amount: ingredient.amount, unit: normalizeUnit(ingredient.unit) }];
-
-      const existing = byName.get(key);
-      if (existing === undefined) {
-        byName.set(key, {
-          normalizedName: key,
-          name: ingredient.name,
-          quantities: quantity,
-          category: ingredient.category,
-          sourceMeals: [meal.name],
-        });
-      } else {
-        existing.quantities = mergeQuantities(existing.quantities, quantity);
-        if (!existing.sourceMeals.includes(meal.name)) existing.sourceMeals.push(meal.name);
-      }
+  for (const item of items) {
+    const existing = byName.get(item.normalizedName);
+    if (existing === undefined) {
+      byName.set(item.normalizedName, {
+        ...item,
+        quantities: [...item.quantities],
+        sourceMeals: [...item.sourceMeals],
+      });
+      continue;
+    }
+    existing.quantities = mergeQuantities(existing.quantities, item.quantities);
+    for (const meal of item.sourceMeals) {
+      if (!existing.sourceMeals.includes(meal)) existing.sourceMeals.push(meal);
     }
   }
 
   return [...byName.values()];
+}
+
+export function itemsFromMeals(meals: readonly Meal[]): PendingItem[] {
+  return mergePending(
+    meals.flatMap((meal) =>
+      meal.ingredients.map((ingredient) => ({
+        normalizedName: normalizeName(ingredient.name),
+        name: ingredient.name,
+        quantities:
+          ingredient.amount === null
+            ? []
+            : [{ amount: ingredient.amount, unit: normalizeUnit(ingredient.unit) }],
+        category: ingredient.category,
+        sourceMeals: [meal.name],
+      })),
+    ),
+  );
 }
 
 /** Resultatet av å møte en ny linje med det som allerede står på lista. */
