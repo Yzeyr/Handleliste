@@ -3,7 +3,7 @@ import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem
 import { parseIngredientLine } from '../lib/parseRecipe.ts';
 import { categoryForName } from '../lib/facts.ts';
 import { normalizeName } from '../lib/normalize.ts';
-import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
+import { formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
 /** Rekkefølgen man går gjennom butikken i, ikke alfabetisk. */
@@ -60,7 +60,7 @@ export function createListView(actions: Actions): View<AppState> {
 
   const amountInput = el('input', {
     class: 'amount',
-    attrs: { type: 'number', inputmode: 'decimal', step: 'any', min: '0', placeholder: 'Antall', 'aria-label': 'Mengde' },
+    attrs: { type: 'text', inputmode: 'decimal', placeholder: 'Antall', 'aria-label': 'Mengde' },
   });
   const unitInput = el('input', {
     class: 'unit',
@@ -176,9 +176,8 @@ export function createListView(actions: Actions): View<AppState> {
     // Tolkede navn får stor forbokstav av parseren; de utolkede skal se likedan ut.
     const name = parsed?.name ?? raw.charAt(0).toUpperCase() + raw.slice(1);
 
-    const typedAmount = amountInput.value.trim().replace(',', '.');
-    const amount =
-      typedAmount === '' ? (parsed?.amount ?? null) : Number(typedAmount);
+    const typed = parseAmount(amountInput.value);
+    const amount = typed ?? (amountInput.value.trim() === '' ? (parsed?.amount ?? null) : null);
     const unit = unitInput.value.trim() !== '' ? unitInput.value : (parsed?.unit ?? 'stk');
 
     const category = isCategory(categorySelect.value)
@@ -246,8 +245,9 @@ export function createListView(actions: Actions): View<AppState> {
   /** Viser hva som faktisk blir lagt til, så syntaksen lærer seg selv. */
   function showPreview(): void {
     const parsed = read();
-    if (parsed === null || parsed.name === nameInput.value.trim()) {
-      // Ingenting tolket ut over navnet: da er forhåndsvisningen bare støy.
+    if (parsed === null || (parsed.amount === null && parsed.name === nameInput.value.trim())) {
+      // Ingenting tolket ut over navnet, og ingen mengde skrevet i feltene
+      // under: da er forhåndsvisningen bare støy.
       preview.textContent =
         parsed === null ? '' : `${parsed.name} · ${parsed.category}`;
       return;
@@ -572,13 +572,11 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
   const amountInput = el('input', {
     class: 'amount',
     attrs: {
-      type: 'number',
+      type: 'text',
       inputmode: 'decimal',
-      step: 'any',
-      min: '0',
       placeholder: 'Antall',
       'aria-label': 'Antall',
-      value: first === undefined ? '' : amountForInput(first.amount),
+      value: first === undefined ? '' : formatAmount(first.amount),
     },
   });
   const unitInput = el('input', {
@@ -599,10 +597,8 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
   );
 
   function quantities(): Quantity[] {
-    const raw = amountInput.value.trim().replace(',', '.');
-    if (raw === '') return [];
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) return [];
+    const amount = parseAmount(amountInput.value);
+    if (amount === null) return [];
     // Bare den første mengden er redigerbar. Står det "3 dl + 2 boks" fordi
     // enhetene ikke lot seg regne sammen, beholdes resten som den er.
     return [{ amount, unit: normalizeUnit(unitInput.value) }, ...item.quantities.slice(1)];

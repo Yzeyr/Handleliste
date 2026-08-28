@@ -1,7 +1,7 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import type { Meal, Quantity, ShoppingItem } from '../lib/types.ts';
 import { describeLastBought, mealsUsing } from '../lib/facts.ts';
-import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
+import { formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
 const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
@@ -87,7 +87,7 @@ export function createRegisterView(actions: Actions): View<AppState> {
 function lastQuantity(item: ShoppingItem): { amount: string; unit: string } {
   const first = item.quantities[0];
   if (first === undefined) return { amount: '', unit: '' };
-  return { amount: amountForInput(first.amount), unit: first.unit };
+  return { amount: formatAmount(first.amount), unit: first.unit };
 }
 
 function renderRow(
@@ -103,10 +103,8 @@ function renderRow(
   const amountInput = el('input', {
     class: 'amount',
     attrs: {
-      type: 'number',
+      type: 'text',
       inputmode: 'decimal',
-      step: 'any',
-      min: '0',
       placeholder: 'Antall',
       'aria-label': `Antall ${item.name}`,
       value: remembered.amount,
@@ -125,10 +123,8 @@ function renderRow(
   });
 
   function chosenQuantity(): Quantity[] {
-    const raw = amountInput.value.trim().replace(',', '.');
-    if (raw === '') return [];
-    const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) return [];
+    const amount = parseAmount(amountInput.value);
+    if (amount === null) return [];
     return [{ amount, unit: normalizeUnit(unitInput.value) }];
   }
 

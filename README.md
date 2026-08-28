@@ -146,6 +146,13 @@ tolkning som brukes på innlimte oppskrifter, og kategorien finnes selv — fra
 varen dere har kjøpt før, ellers gjettet fra navnet. En linje under feltet
 viser hva som blir lagt til mens du skriver.
 
+Mengdefeltene er `<input type="text">` med `inputmode="decimal"`, ikke
+`type="number"`. Et talfelt forkaster «1,5» som ugyldig, og da kommer verdien
+aldri fram til koden — feltet ser bare tomt ut mens du står og lurer. Norsk
+tastatur gir komma, så det er komma folk skriver. `parseAmount` tar både komma
+og punktum, og `formatAmount` skriver den tilbake med norsk komma. Dekket av
+test, sammen med at «1,2,3» og «-2» ikke blir en mengde.
+
 Feltene for mengde, enhet og kategori ligger bak «Mengde og kategori» og er
 bare til å overstyre med. De folder seg ikke ut av seg selv: et skjema som
 vokser når du trykker i det dytter lista nedover uten grunn.

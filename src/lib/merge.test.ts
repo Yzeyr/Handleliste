@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { itemsFromMeals, mergePending, mergeQuantities, planListChange } from './merge.ts';
 import { normalizeName } from './normalize.ts';
-import { formatQuantities } from './units.ts';
+import { formatAmount, formatQuantities, parseAmount } from './units.ts';
 import type { Meal, MealIngredient, Quantity, ShoppingItem } from './types.ts';
 
 function ing(
@@ -273,4 +273,27 @@ test('mergePending rører ikke listene den fikk inn', () => {
   };
   mergePending([original, { ...original, quantities: [{ amount: 3, unit: 'dl' }] }]);
   assert.deepEqual(original.quantities, [{ amount: 2, unit: 'dl' }]);
+});
+
+test('mengdefeltet leser både komma og punktum', () => {
+  assert.equal(parseAmount('1,5'), 1.5);
+  assert.equal(parseAmount('1.5'), 1.5);
+  assert.equal(parseAmount(' 0,5 '), 0.5);
+  assert.equal(parseAmount('2'), 2);
+});
+
+test('mengdefeltet avviser det som ikke er en mengde', () => {
+  assert.equal(parseAmount(''), null);
+  assert.equal(parseAmount('   '), null);
+  assert.equal(parseAmount('0'), null);
+  assert.equal(parseAmount('-2'), null);
+  assert.equal(parseAmount('melk'), null);
+  assert.equal(parseAmount('1,2,3'), null);
+});
+
+test('mengden vises igjen slik den ble skrevet', () => {
+  // Feltet er tekst nå, så det kan vise norsk komma i stedet for punktum.
+  assert.equal(formatAmount(parseAmount('1,5') ?? 0), '1,5');
+  assert.equal(formatAmount(parseAmount('0,5') ?? 0), '0,5');
+  assert.equal(formatAmount(parseAmount('2') ?? 0), '2');
 });

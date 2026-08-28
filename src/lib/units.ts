@@ -128,12 +128,18 @@ export function formatAmount(amount: number): string {
 }
 
 /**
- * Verdien et <input type="number"> godtar. Må ha punktum som desimaltegn —
- * "1,5" gjør feltet ugyldig, og da vises det tomt uten at noe sier fra.
- * Til visning brukes formatAmount, som skriver norsk komma.
+ * Leser et tall en person har skrevet: «1,5» og «1.5» er samme mengde.
+ *
+ * Mengdefeltene er <input type="text"> med inputmode="decimal", ikke
+ * type="number". Et talfelt forkaster «1,5» som ugyldig, og da kommer verdien
+ * aldri fram til koden — feltet ser bare tomt ut. Norsk tastatur gir komma, så
+ * det er komma folk skriver.
  */
-export function amountForInput(amount: number): string {
-  return String(amount);
+export function parseAmount(raw: string): number | null {
+  const text = raw.trim().replace(',', '.');
+  if (text === '') return null;
+  const value = Number(text);
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 export function formatQuantity(quantity: { amount: number; unit: string }): string {

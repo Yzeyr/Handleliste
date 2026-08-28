@@ -1,6 +1,6 @@
 import { el } from '../dom.ts';
 import { CATEGORIES, isCategory, type Category, type Meal, type MealDraft } from '../lib/types.ts';
-import { amountForInput, normalizeUnit } from '../lib/units.ts';
+import { formatAmount, normalizeUnit, parseAmount } from '../lib/units.ts';
 
 const UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
 
@@ -167,13 +167,11 @@ function ingredientRow(
   const amount = el('input', {
     class: 'amount',
     attrs: {
-      type: 'number',
+      type: 'text',
       inputmode: 'decimal',
-      step: 'any',
-      min: '0',
       placeholder: 'Antall',
       'aria-label': 'Antall',
-      value: values?.amount === null || values?.amount === undefined ? '' : amountForInput(values.amount),
+      value: values?.amount === null || values?.amount === undefined ? '' : formatAmount(values.amount),
     },
   });
   const unit = el('input', {
@@ -205,9 +203,7 @@ function ingredientRow(
   return {
     element,
     read: () => {
-      const raw = amount.value.trim().replace(',', '.');
-      const parsed = raw === '' ? null : Number(raw);
-      const valid = parsed !== null && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      const valid = parseAmount(amount.value);
       return {
         name: name.value,
         amount: valid,
