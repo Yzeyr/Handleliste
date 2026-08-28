@@ -72,6 +72,67 @@ body {
   color: var(--muted);
 }
 
+/* --- Medlemskort --------------------------------------------------------- */
+
+.card-list { display: flex; flex-direction: column; gap: 10px; }
+
+.card-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Hvit bakgrunn bak miniatyren også: et skjermbilde av en strekkode er som
+   regel svart på hvitt, og forsvinner mot et mørkt kort. */
+.card-thumb {
+  flex: none;
+  width: 64px;
+  height: 44px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 6px;
+}
+
+.card-name { font-size: 16px; font-weight: 600; }
+
+.card-file { padding: 10px; }
+
+/* Kassavisningen. Utenfor appens mørke ramme, fordi en skanner leser
+   kontrast — en lys kode på mørk bakgrunn er nettopp det som ikke fanges. */
+.card-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);
+  background: #fff;
+}
+
+.card-big {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+
+.card-number {
+  margin: 0;
+  color: #111;
+  font: 600 22px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 1px;
+}
+
+.card-actions { display: flex; gap: 10px; width: 100%; max-width: 420px; }
+
 .pin-mark {
   flex: none;
   color: var(--accent);

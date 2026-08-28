@@ -425,6 +425,24 @@ slik den var *før* endringen. Uten det kan ikke appen skille «haket av» fra
 `src/lib/changes.ts` er ren og dekket av tester nettopp fordi det er her det
 er lett å si noe som er feil.
 
+### Medlemskort
+
+💳 på Liste-fanen og i handlemodus: bildene av kodene du viser i kassa.
+Lagres i `localStorage` på den ene telefonen, aldri i den delte basen — et
+medlemsnummer hører til én person, og en delt tabell med anon-tilgang er feil
+sted for det.
+
+**Bilde, ikke et nummer vi tegner strekkode av.** Hvilken kodetype hver kjede
+forventer er ikke noe vi kan slå fast, og en kode som er gjettet feil oppdager
+du først i kassa. Et skjermbilde fra kjedens egen app er nøyaktig det som
+virket sist.
+
+Bildet skaleres til maks 1400 px og lagres som PNG når det er lite nok — en
+strekkode er skarpe kanter, og JPEG-artefakter treffer nettopp dem. Er PNG-en
+for stor, faller den til JPEG i tre trinn heller enn å nekte. Visningen legger
+seg over hele skjermen på hvit bakgrunn, utenfor appens mørke ramme, fordi en
+skanner leser kontrast.
+
 ### Faste varer
 
 ★ på en rad betyr én ting: **varen fjernes aldri, den hakes bare av.** Både

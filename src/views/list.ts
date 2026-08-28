@@ -292,13 +292,23 @@ export function createListView(actions: Actions): View<AppState> {
     // butikkdøra og skal ikke måtte scrolle forbi hele lista for å finne den.
     const igjen = state.items.filter((item) => !item.checked).length;
     replaceChildren(shoppingEntry, [
-      igjen > 0 &&
+      el('div', { class: 'row' }, [
+        igjen > 0 &&
+          el('button', {
+            class: 'outline grow',
+            text: `🛒 Start handling · ${igjen} ${igjen === 1 ? 'vare' : 'varer'}`,
+            attrs: { type: 'button' },
+            on: { click: () => actions.startShopping() },
+          }),
+        // Kortet brukes i kassa, altså på samme tur som lista. Da hører det
+        // hjemme her, ikke bak tannhjulet.
         el('button', {
-          class: 'outline wide',
-          text: `🛒 Start handling · ${igjen} ${igjen === 1 ? 'vare' : 'varer'}`,
+          class: igjen > 0 ? 'outline' : 'outline grow',
+          text: '💳 Kort',
           attrs: { type: 'button' },
-          on: { click: () => actions.startShopping() },
+          on: { click: () => actions.showCards() },
         }),
+      ]),
     ]);
 
     const unseenCount = state.items.filter((item) => state.unseen.has(item.id)).length;

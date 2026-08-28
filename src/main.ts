@@ -17,6 +17,7 @@ import { normalizeUnit } from './lib/units.ts';
 import type { Intent } from './lib/intent.ts';
 import { clearLabel, planClear } from './lib/clearing.ts';
 import { createSetupView } from './views/setup.ts';
+import { createCardsView } from './views/cards.ts';
 import {
   applyShareLink,
   clearConfig,
@@ -271,6 +272,7 @@ async function start(container: HTMLElement): Promise<void> {
       }),
     goToList: () => setTab('liste'),
     startShopping: () => setShopping(true),
+    showCards: () => showCards(),
   };
 
   const shoppingView = createShoppingView(actions, () => setShopping(false));
@@ -322,6 +324,23 @@ async function start(container: HTMLElement): Promise<void> {
     toast,
     tabBar,
   ]);
+
+  /**
+   * Kortene ligger på samme nivå som innstillinger — utenfor fanene, siden de
+   * ikke er en del av lista. «Tilbake» går dit du kom fra, også når det var
+   * handlemodus.
+   */
+  function showCards(): void {
+    const wasShopping = shopping;
+    for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
+    replaceChildren(content, [
+      createCardsView(() => {
+        if (wasShopping) setShopping(true);
+        else setTab(tab);
+      }),
+    ]);
+    content.scrollTo({ top: 0 });
+  }
 
   function showSettings(): void {
     for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');

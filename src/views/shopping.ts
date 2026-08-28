@@ -37,6 +37,12 @@ export function createShoppingView(actions: Actions, onExit: () => void): View<A
       ]),
       el('button', {
         class: 'ghost',
+        text: '💳',
+        attrs: { type: 'button', 'aria-label': 'Vis medlemskort' },
+        on: { click: () => actions.showCards() },
+      }),
+      el('button', {
+        class: 'ghost',
         text: 'Ferdig',
         attrs: { type: 'button' },
         on: { click: onExit },

@@ -26,6 +26,7 @@ export interface Actions {
   clearWeek: () => void;
   goToList: () => void;
   startShopping: () => void;
+  showCards: () => void;
   editItem: (item: ShoppingItem, patch: { name: string; category: Category; quantities: Quantity[] }) => void;
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;
