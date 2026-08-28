@@ -285,15 +285,19 @@ button { cursor: pointer; }
 
 .item-edit {
   flex: none;
-  width: 52px;
+  width: 40px;
   background: transparent;
   border: none;
   border-radius: 0;
   color: var(--muted);
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1;
   letter-spacing: 1px;
+  opacity: 0.4;
 }
+
+/* Trykkflaten er fortsatt 40px bred selv om tegnet er lite. */
+.item-edit:hover, .item-edit:focus-visible, .item.open .item-edit { opacity: 1; }
 
 .item-editor {
   display: flex;
@@ -395,6 +399,8 @@ textarea {
 .ingredient-amount { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .steps { margin: 0; padding-left: 20px; }
+
+.meal-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
 .steps li { padding: 3px 0; }
 
 /* ---------- ukemeny ---------- */

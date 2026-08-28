@@ -177,6 +177,19 @@ async function start(container: HTMLElement): Promise<void> {
         await refreshAliases();
         showSettings();
       }),
+    // Én middag rett i lista, uten å gå veien om ukemenyen. Ukemenyen er for
+    // planlegging; dette er for «vi tar taco i kveld».
+    addMealToList: (meal: Meal) => {
+      const pending = itemsFromMeals([meal]);
+      queue(() => ({
+        kind: 'addPending',
+        pending,
+        newIds: pending.map(() => crypto.randomUUID()),
+        mealIds: [],
+      }));
+      setTab('liste');
+      showStatus(`${pending.length} varer lagt til fra ${meal.name}`);
+    },
     editMeal: (meal: Meal | null) => showMealEditor(meal),
     // Oppskrifter og synonymer legges ikke i offline-køen. De endres sjelden,
     // og aldri midt i en butikk — å si det rett ut er bedre enn å late som

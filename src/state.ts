@@ -26,6 +26,7 @@ export interface Actions {
   editItem: (item: ShoppingItem, patch: { name: string; category: Category; quantities: Quantity[] }) => void;
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;
+  addMealToList: (meal: Meal) => void;
   editMeal: (meal: Meal | null) => void;
   saveMeal: (draft: MealDraft) => void;
   deleteMeal: (meal: Meal) => void;

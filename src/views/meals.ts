@@ -116,12 +116,20 @@ function renderMeal(
         meal.steps.length > 0 && el('h3', { text: 'Slik gjør du' }),
         meal.steps.length > 0 &&
           el('ol', { class: 'steps' }, meal.steps.map((step) => el('li', { text: step }))),
-        el('button', {
-          class: 'ghost',
-          text: 'Endre oppskriften',
-          attrs: { type: 'button' },
-          on: { click: () => actions.editMeal(meal) },
-        }),
+        el('div', { class: 'meal-actions' }, [
+          el('button', {
+            class: 'primary wide',
+            text: 'Legg ingrediensene i lista',
+            attrs: { type: 'button' },
+            on: { click: () => actions.addMealToList(meal) },
+          }),
+          el('button', {
+            class: 'ghost',
+            text: 'Endre oppskriften',
+            attrs: { type: 'button' },
+            on: { click: () => actions.editMeal(meal) },
+          }),
+        ]),
       ])
     : null;
 
