@@ -1,5 +1,7 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem } from '../lib/types.ts';
+import { parseIngredientLine } from '../lib/parseRecipe.ts';
+import { categoryForName } from '../lib/facts.ts';
 import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
@@ -18,6 +20,9 @@ const GROUP_ORDER: Category[] = [
 const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
 
 export function createListView(actions: Actions): View<AppState> {
+  // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.
+  let known: ShoppingItem[] = [];
+
   // Hvilke rader som står åpne for redigering. Holdes utenfor tegningen, så
   // en oppdatering fra den andre telefonen ikke lukker et skjema du står i.
   const open = new Set<string>();
@@ -48,28 +53,71 @@ export function createListView(actions: Actions): View<AppState> {
     { attrs: { id: 'enheter' } },
     COMMON_UNITS.map((u) => el('option', { attrs: { value: u } })),
   );
-  const categorySelect = el(
-    'select',
-    { class: 'category', attrs: { 'aria-label': 'Kategori' } },
-    CATEGORIES.map((c) => el('option', { text: c, attrs: { value: c, selected: c === 'annet' } })),
-  );
+  const AUTO = 'auto';
+  const categorySelect = el('select', { class: 'category', attrs: { 'aria-label': 'Kategori' } }, [
+    // Standard er å la appen finne kategorien. Ingen skal måtte åpne en
+    // nedtrekksliste for å legge melk i handlelista.
+    el('option', { text: 'kategori: automatisk', attrs: { value: AUTO, selected: true } }),
+    ...CATEGORIES.map((c) => el('option', { text: c, attrs: { value: c } })),
+  ]);
 
-  function submit(): void {
-    const name = nameInput.value.trim();
-    if (name === '') return;
-    const rawAmount = amountInput.value.trim().replace(',', '.');
-    const amount = rawAmount === '' ? null : Number(rawAmount);
-    const category = isCategory(categorySelect.value) ? categorySelect.value : 'annet';
-    actions.addManual({
+  const preview = el('p', { class: 'add-preview' });
+
+  /**
+   * Leser hele varen ut av ett felt: "2 l melk", "500 g kjøttdeig", "brød".
+   * Feltene for mengde, enhet og kategori er der fortsatt, men bare som
+   * overstyring — man skal aldri måtte åpne dem.
+   */
+  function read(): { name: string; amount: number | null; unit: string; category: Category } | null {
+    const raw = nameInput.value.trim();
+    if (raw === '') return null;
+
+    const parsed = parseIngredientLine(raw);
+    // Tolkede navn får stor forbokstav av parseren; de utolkede skal se likedan ut.
+    const name = parsed?.name ?? raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    const typedAmount = amountInput.value.trim().replace(',', '.');
+    const amount =
+      typedAmount === '' ? (parsed?.amount ?? null) : Number(typedAmount);
+    const unit = unitInput.value.trim() !== '' ? unitInput.value : (parsed?.unit ?? 'stk');
+
+    const category = isCategory(categorySelect.value)
+      ? categorySelect.value
+      : categoryForName(name, known);
+
+    return {
       name,
       amount: amount !== null && Number.isFinite(amount) && amount > 0 ? amount : null,
-      unit: unitInput.value,
+      unit,
       category,
-    });
+    };
+  }
+
+  /** Viser hva som faktisk blir lagt til, så syntaksen lærer seg selv. */
+  function showPreview(): void {
+    const parsed = read();
+    if (parsed === null || parsed.name === nameInput.value.trim()) {
+      // Ingenting tolket ut over navnet: da er forhåndsvisningen bare støy.
+      preview.textContent =
+        parsed === null ? '' : `${parsed.name} · ${parsed.category}`;
+      return;
+    }
+    const amount = parsed.amount === null ? '' : ` · ${formatQuantities([{ amount: parsed.amount, unit: parsed.unit }])}`;
+    preview.textContent = `${parsed.name}${amount} · ${parsed.category}`;
+  }
+
+  function submit(): void {
+    const parsed = read();
+    if (parsed === null) return;
+
+    actions.addManual(parsed);
+
     form.classList.remove('open');
     nameInput.value = '';
     amountInput.value = '';
     unitInput.value = '';
+    categorySelect.value = AUTO;
+    preview.textContent = '';
     nameInput.focus();
   }
 
@@ -84,18 +132,24 @@ export function createListView(actions: Actions): View<AppState> {
           event.preventDefault();
           submit();
         },
-        // Mengde/enhet/kategori tar plass fra lista, som er det man faktisk
-        // leser i butikken. De folder seg ut når man begynner å skrive, og
-        // igjen når varen er lagt til.
-        //
-        // De folder seg bevisst IKKE sammen når fokus forlater skjemaet: da
-        // ville lista hoppet oppover mellom at fingeren går ned og opp, og
-        // trykket havnet på feil rad — eller forsvant helt.
-        focusin: () => form.classList.add('open'),
+        // Detaljene folder seg ikke ut av seg selv lenger. Feltet over
+        // forstår "2 l melk", så de trengs sjelden — og et skjema som vokser
+        // når du trykker i det dytter lista nedover uten grunn.
+        input: () => showPreview(),
       },
     },
     [
-      el('div', { class: 'row' }, [nameInput, el('button', { class: 'primary', text: 'Legg til', attrs: { type: 'submit' } })]),
+      el('div', { class: 'row' }, [
+        nameInput,
+        el('button', { class: 'primary', text: 'Legg til', attrs: { type: 'submit' } }),
+      ]),
+      preview,
+      el('button', {
+        class: 'detail-toggle',
+        text: 'Mengde og kategori',
+        attrs: { type: 'button' },
+        on: { click: () => form.classList.toggle('open') },
+      }),
       details,
       unitOptions,
       nameOptions,
@@ -109,6 +163,7 @@ export function createListView(actions: Actions): View<AppState> {
   const element = el('section', { class: 'view' }, [form, shoppingEntry, banner, body, footer]);
 
   function update(state: AppState): void {
+    known = [...state.items, ...state.register];
     replaceChildren(
       nameOptions,
       state.register.map((item) => el('option', { attrs: { value: item.name } })),

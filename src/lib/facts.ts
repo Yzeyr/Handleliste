@@ -6,6 +6,8 @@
  * treffe nesten hver gang for å være annet enn støy.
  */
 import { normalizeName } from './normalize.ts';
+import { guessCategory } from './parseRecipe.ts';
+import type { Category } from './types.ts';
 import type { Meal, ShoppingItem } from './types.ts';
 
 /**
@@ -45,4 +47,19 @@ export function describeLastBought(iso: string, now: Date = new Date()): string 
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+
+/**
+ * Hvilken butikkseksjon en vare hører hjemme i.
+ *
+ * Har dere kjøpt den før, gjenbrukes kategorien dere allerede har gitt den —
+ * det er alltid riktigere enn en gjetning. Ellers gjettes den fra navnet.
+ * Poenget er at ingen skal måtte åpne en nedtrekksliste for å legge melk i
+ * handlelista.
+ */
+export function categoryForName(name: string, known: readonly ShoppingItem[]): Category {
+  const key = normalizeName(name);
+  const seen = known.find((item) => item.normalized_name === key);
+  return seen?.category ?? guessCategory(name);
 }

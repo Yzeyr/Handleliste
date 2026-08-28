@@ -138,6 +138,16 @@ Kategorier: `grønt` `kjøtt` `fisk` `meieri` `tørrvarer` `frys` `bakeri` `anne
 
 Kjernekravet: to middager som bruker helmelk skal gi **én** linje.
 
+Ett felt holder: skriv **«2 l melk»**, **«500 g kjøttdeig»** eller bare
+**«brød»** og trykk Enter. Mengde og enhet plukkes ut av teksten med samme
+tolkning som brukes på innlimte oppskrifter, og kategorien finnes selv — fra
+varen dere har kjøpt før, ellers gjettet fra navnet. En linje under feltet
+viser hva som blir lagt til mens du skriver.
+
+Feltene for mengde, enhet og kategori ligger bak «Mengde og kategori» og er
+bare til å overstyre med. De folder seg ikke ut av seg selv: et skjema som
+vokser når du trykker i det dytter lista nedover uten grunn.
+
 Navnene i registeret foreslås mens du skriver, og en rad på lista kan endres
 i ettertid — navn, mengde og kategori — via `⋯` på raden. Sletting ligger
 inne i det skjemaet, ikke som en knapp ved siden av avhukingen, og alt som

@@ -104,7 +104,7 @@ export function parseRecipe(text: string): ParseResult {
       continue;
     }
 
-    const ingredient = parseIngredient(line);
+    const ingredient = parseIngredientLine(line);
     if (ingredient !== null) {
       sawIngredient = true;
       draft.ingredients.push(ingredient);
@@ -135,7 +135,7 @@ function cleanLine(raw: string): string {
 }
 
 /** "500 g kjøttdeig", "1 ½ dl fløte", "2 egg", "Kjøttdeig, 400 g". */
-function parseIngredient(line: string): MealDraft['ingredients'][number] | null {
+export function parseIngredientLine(line: string): MealDraft['ingredients'][number] | null {
   // "Kjøttdeig, 400 g". Tegnet før kommaet må ikke være et siffer, ellers
   // ville desimalkommaet i "1,5 kg poteter" blitt lest som et skille.
   const reversed = /^(.*[^\d\s]),\s*([\d½¼¾⅓⅔].*)$/.exec(line);
@@ -202,7 +202,7 @@ function isUnit(word: string): boolean {
   return unitDefinition(normalized) !== null || EXTRA_UNITS.has(normalized);
 }
 
-function guessCategory(name: string): Category {
+export function guessCategory(name: string): Category {
   for (const [category, pattern] of CATEGORY_HINTS) {
     if (pattern.test(name)) return category;
   }

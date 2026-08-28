@@ -115,3 +115,29 @@ test('tom tekst gir et tomt utkast, ikke et krasj', () => {
   assert.equal(r.draft.ingredients.length, 0);
   assert.equal(r.draft.name, '');
 });
+
+// ---------------------------------------------------------------------------
+// Samme tolkning brukes av «Legg til vare»-feltet
+// ---------------------------------------------------------------------------
+
+import { parseIngredientLine } from './parseRecipe.ts';
+
+const linje = (t: string) => {
+  const r = parseIngredientLine(t);
+  return r === null ? null : `${r.name} ${r.amount ?? '—'} ${r.unit ?? ''}`.trim();
+};
+
+test('feltet forstår mengde skrevet foran navnet', () => {
+  assert.equal(linje('2 l melk'), 'Melk 2 l');
+  assert.equal(linje('500 g kjøttdeig'), 'Kjøttdeig 500 g');
+  assert.equal(linje('3 stk paprika'), 'Paprika 3 stk');
+});
+
+test('feltet forstår tall uten enhet', () => {
+  assert.equal(linje('6 egg'), 'Egg 6 stk');
+});
+
+test('bare et navn gir ingen tolkning, og skal brukes som det er', () => {
+  assert.equal(linje('Melk'), null);
+  assert.equal(linje('Toalettpapir'), null);
+});

@@ -88,3 +88,34 @@ test('tåler tomt og ugyldig', () => {
   // En dato fram i tid gir ingenting heller enn «for -3 dager siden».
   assert.equal(describeLastBought(new Date(2026, 7, 31).toISOString(), now), null);
 });
+
+// ---------------------------------------------------------------------------
+// Kategori uten at noen må åpne en nedtrekksliste
+// ---------------------------------------------------------------------------
+
+import { categoryForName } from './facts.ts';
+
+function kjent(name: string, category: ShoppingItem['category']): ShoppingItem {
+  return { ...item(name), category };
+}
+
+test('gjenbruker kategorien varen allerede har fått', () => {
+  // Gjetningen ville sagt «annet» her; det dere selv har bestemt veier tyngre.
+  assert.equal(categoryForName('Kikerter', [kjent('Kikerter', 'grønt')]), 'grønt');
+});
+
+test('gjetter fra navnet når varen er ny', () => {
+  assert.equal(categoryForName('Helmelk', []), 'meieri');
+  assert.equal(categoryForName('Kjøttdeig', []), 'kjøtt');
+  assert.equal(categoryForName('Laksefilet', []), 'fisk');
+  assert.equal(categoryForName('Rødløk', []), 'grønt');
+  assert.equal(categoryForName('Tortillalefser', []), 'bakeri');
+});
+
+test('gir annet når den ikke vet', () => {
+  assert.equal(categoryForName('Tannkrem', []), 'annet');
+});
+
+test('kjenner igjen varen selv om navnet skrives annerledes', () => {
+  assert.equal(categoryForName('H-melk', [kjent('Helmelk', 'meieri')]), 'meieri');
+});
