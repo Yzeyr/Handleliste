@@ -200,6 +200,7 @@ src/lib/merge.ts       all sammenslåingslogikk (ren, uten database)
 src/lib/merge.test.ts  tester av det over
 src/lib/changes.ts     endring -> setning ("Kari handlet Melk"), ren
 src/lib/facts.ts       det appen vet sikkert om en vare, rent og testet
+src/lib/parseRecipe.ts innlimt oppskriftstekst -> utkast til middag, rent
 src/lib/changes.test.ts tester av det over
 src/lib/db.ts          Supabase-kall og realtime
 src/lib/localStore.ts  lista i minnet; brukes av offline-laget og av mock
@@ -235,6 +236,24 @@ Modusen ligger i `localStorage`, så en omlasting midt i butikken ikke kaster
 deg ut av den, og appen ber om `wakeLock` mens den er på — en telefon som
 låser seg mellom hver vare er den raskeste måten å gjøre en handleliste
 ubrukelig på. Støttes ikke overalt, og da oppfører den seg som før.
+
+## Lime inn en oppskrift
+
+Under Middager: «eller lim inn en oppskrift». Marker oppskriften på en
+nettside, kopier, lim inn. `parseRecipe.ts` plukker ut navn, porsjoner,
+ingredienser med mengde og enhet, og framgangsmåte, og foreslår kategori ut
+fra navnet. Resultatet åpnes alltid i middagsskjemaet — tolkningen treffer
+det vanlige, ikke alt, og da er det bedre å vise hva den fant enn å lagre noe
+du ikke har sett. Linjer uten mengde telles opp og nevnes over skjemaet.
+
+Den takler kulepunkter, `400–600 g` (bruker det laveste), brøker som `1 ½`,
+desimalkomma, `Kjøttdeig, 400 g`, presiseringer i parentes, og skiller
+framgangsmåte fra ingredienser på overskrift eller nummererte linjer.
+
+**Hvorfor ikke en nettadresse:** en nettside i nettleseren får ikke lov å
+hente innhold fra andre domener (CORS). URL-import ville krevd en server i
+mellom — en Edge Function — som må deployes fra en datamaskin. Teksten gir
+samme resultat uten det leddet.
 
 ## Vareregisteret
 

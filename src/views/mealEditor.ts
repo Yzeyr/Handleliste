@@ -1,6 +1,6 @@
 import { el } from '../dom.ts';
 import { CATEGORIES, isCategory, type Category, type Meal, type MealDraft } from '../lib/types.ts';
-import { formatAmount, normalizeUnit } from '../lib/units.ts';
+import { amountForInput, normalizeUnit } from '../lib/units.ts';
 
 const UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
 
@@ -15,21 +15,25 @@ interface Row {
  */
 export function createMealEditor(
   meal: Meal | null,
+  /** Ferdigutfylt utkast, f.eks. fra en innlimt oppskrift. */
+  preset: MealDraft | undefined,
+  /** Hvor mange innleste linjer som manglet mengde og bør etterses. */
+  uncertain: number,
   actions: {
     save: (draft: MealDraft) => void;
     remove: (meal: Meal) => void;
     close: () => void;
   },
 ): HTMLElement {
-  const nameInput = field('Navn', 'text', meal?.name ?? '');
-  const emojiInput = field('Ikon', 'text', meal?.emoji ?? '');
-  const descriptionInput = field('Kort beskrivelse', 'text', meal?.description ?? '');
-  const servingsInput = field('Porsjoner', 'number', String(meal?.servings ?? 4));
+  const nameInput = field('Navn', 'text', meal?.name ?? preset?.name ?? '');
+  const emojiInput = field('Ikon', 'text', meal?.emoji ?? preset?.emoji ?? '');
+  const descriptionInput = field('Kort beskrivelse', 'text', meal?.description ?? preset?.description ?? '');
+  const servingsInput = field('Porsjoner', 'number', String(meal?.servings ?? preset?.servings ?? 4));
 
   const stepsInput = el('textarea', {
     attrs: { rows: 5, 'aria-label': 'Framgangsmåte, ett steg per linje' },
   });
-  stepsInput.value = (meal?.steps ?? []).join('\n');
+  stepsInput.value = (meal?.steps ?? preset?.steps ?? []).join('\n');
 
   const rows: Row[] = [];
   const rowList = el('div', { class: 'ingredient-rows' });
@@ -45,18 +49,17 @@ export function createMealEditor(
     rowList.append(row.element);
   }
 
-  const existing = meal?.ingredients ?? [];
+  const existing =
+    meal?.ingredients.map((ingredient) => ({
+      name: ingredient.name,
+      amount: ingredient.amount,
+      unit: ingredient.unit,
+      category: ingredient.category,
+    })) ??
+    preset?.ingredients ??
+    [];
   if (existing.length === 0) addRow();
-  else {
-    for (const ingredient of existing) {
-      addRow({
-        name: ingredient.name,
-        amount: ingredient.amount,
-        unit: ingredient.unit,
-        category: ingredient.category,
-      });
-    }
-  }
+  else for (const ingredient of existing) addRow(ingredient);
 
   const error = el('p', { class: 'form-error' });
 
@@ -76,7 +79,20 @@ export function createMealEditor(
   }
 
   return el('section', { class: 'view' }, [
-    el('h2', { class: 'view-title', text: meal === null ? 'Ny middag' : `Endre ${meal.name}` }),
+    el('h2', {
+      class: 'view-title',
+      text: meal !== null ? `Endre ${meal.name}` : preset !== undefined ? 'Innlest oppskrift' : 'Ny middag',
+    }),
+    preset !== undefined &&
+      el('p', {
+        class: 'fine-print',
+        text:
+          uncertain === 0
+            ? 'Sjekk mengder, enheter og kategorier før du lagrer — tolkningen treffer ikke alltid.'
+            : uncertain === 1
+              ? '1 linje manglet mengde. Sjekk den, og se over resten før du lagrer.'
+              : `${uncertain} linjer manglet mengde. Sjekk dem, og se over resten før du lagrer.`,
+      }),
     nameInput.labelled,
     el('div', { class: 'row' }, [emojiInput.labelled, servingsInput.labelled]),
     descriptionInput.labelled,
@@ -157,7 +173,7 @@ function ingredientRow(
       min: '0',
       placeholder: 'Antall',
       'aria-label': 'Antall',
-      value: values?.amount === null || values?.amount === undefined ? '' : formatAmount(values.amount),
+      value: values?.amount === null || values?.amount === undefined ? '' : amountForInput(values.amount),
     },
   });
   const unit = el('input', {

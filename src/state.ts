@@ -29,6 +29,7 @@ export interface Actions {
   removeAlias: (alias: string) => void;
   addMealToList: (meal: Meal) => void;
   editMeal: (meal: Meal | null) => void;
+  pasteRecipe: () => void;
   saveMeal: (draft: MealDraft) => void;
   deleteMeal: (meal: Meal) => void;
 }

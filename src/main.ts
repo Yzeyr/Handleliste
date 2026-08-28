@@ -10,6 +10,7 @@ import { createWeekView } from './views/week.ts';
 import { createRegisterView } from './views/register.ts';
 import { createShoppingView } from './views/shopping.ts';
 import { createMealEditor } from './views/mealEditor.ts';
+import { createPasteRecipeView } from './views/pasteRecipe.ts';
 import { normalizeName, setRuntimeAliases } from './lib/normalize.ts';
 import { watchForAppUpdate } from './lib/appUpdate.ts';
 import { normalizeUnit } from './lib/units.ts';
@@ -226,6 +227,7 @@ async function start(container: HTMLElement): Promise<void> {
       showStatus(`${pending.length} varer lagt til fra ${meal.name}`);
     },
     editMeal: (meal: Meal | null) => showMealEditor(meal),
+    pasteRecipe: () => showPasteRecipe(),
     // Oppskrifter og synonymer legges ikke i offline-køen. De endres sjelden,
     // og aldri midt i en butikk — å si det rett ut er bedre enn å late som
     // det gikk og så sende det senere.
@@ -432,10 +434,24 @@ async function start(container: HTMLElement): Promise<void> {
     content.scrollTo({ top: 0 });
   }
 
-  function showMealEditor(meal: Meal | null): void {
+  function showPasteRecipe(): void {
     for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
     replaceChildren(content, [
-      createMealEditor(meal, {
+      createPasteRecipeView({
+        // Utkastet går rett inn i det vanlige skjemaet. Ingen egen
+        // lagringsvei for importerte oppskrifter — én vei inn, ett sted å
+        // rette feil.
+        parsed: (draft, uncertain) => showMealEditor(null, draft, uncertain),
+        close: () => setTab('middager'),
+      }),
+    ]);
+    content.scrollTo({ top: 0 });
+  }
+
+  function showMealEditor(meal: Meal | null, draft?: MealDraft, uncertain = 0): void {
+    for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
+    replaceChildren(content, [
+      createMealEditor(meal, draft, uncertain, {
         save: actions.saveMeal,
         remove: actions.deleteMeal,
         close: () => setTab('middager'),

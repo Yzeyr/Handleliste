@@ -1,7 +1,7 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import type { Meal, Quantity, ShoppingItem } from '../lib/types.ts';
 import { describeLastBought, mealsUsing } from '../lib/facts.ts';
-import { formatAmount, formatQuantities, normalizeUnit } from '../lib/units.ts';
+import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
 const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
@@ -87,7 +87,7 @@ export function createRegisterView(actions: Actions): View<AppState> {
 function lastQuantity(item: ShoppingItem): { amount: string; unit: string } {
   const first = item.quantities[0];
   if (first === undefined) return { amount: '', unit: '' };
-  return { amount: formatAmount(first.amount), unit: first.unit };
+  return { amount: amountForInput(first.amount), unit: first.unit };
 }
 
 function renderRow(

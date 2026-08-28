@@ -29,6 +29,12 @@ export function createMealsView(actions: Actions): View<AppState> {
       attrs: { type: 'button' },
       on: { click: () => actions.editMeal(null) },
     }),
+    el('button', {
+      class: 'ghost',
+      text: 'eller lim inn en oppskrift',
+      attrs: { type: 'button' },
+      on: { click: () => actions.pasteRecipe() },
+    }),
     body,
   ]);
 

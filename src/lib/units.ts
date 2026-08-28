@@ -127,6 +127,15 @@ export function formatAmount(amount: number): string {
   return String(rounded).replace('.', ',');
 }
 
+/**
+ * Verdien et <input type="number"> godtar. Må ha punktum som desimaltegn —
+ * "1,5" gjør feltet ugyldig, og da vises det tomt uten at noe sier fra.
+ * Til visning brukes formatAmount, som skriver norsk komma.
+ */
+export function amountForInput(amount: number): string {
+  return String(amount);
+}
+
 export function formatQuantity(quantity: { amount: number; unit: string }): string {
   return `${formatAmount(quantity.amount)} ${quantity.unit}`;
 }

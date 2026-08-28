@@ -1,6 +1,6 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem } from '../lib/types.ts';
-import { formatAmount, formatQuantities, normalizeUnit } from '../lib/units.ts';
+import { amountForInput, formatQuantities, normalizeUnit } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
 /** Rekkefølgen man går gjennom butikken i, ikke alfabetisk. */
@@ -250,7 +250,7 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
       min: '0',
       placeholder: 'Antall',
       'aria-label': 'Antall',
-      value: first === undefined ? '' : formatAmount(first.amount),
+      value: first === undefined ? '' : amountForInput(first.amount),
     },
   });
   const unitInput = el('input', {
