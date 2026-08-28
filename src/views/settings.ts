@@ -145,25 +145,55 @@ function pushBlock(actions: SettingsActions): HTMLElement {
   }
 
   const url = subscribeUrl(topic);
-  const linkBox = el('input', {
+
+  // Vi viser emnenavnet, ikke URL-en. Lim man URL-en inn i ntfy havner den i
+  // «Use another server» og appen spør en server som ikke finnes — 404.
+  // Emnenavnet alene er det eneste som skal inn i skjemaet.
+  const topicBox = el('input', {
     class: 'share-link',
-    attrs: { type: 'text', readonly: true, 'aria-label': 'Varselkanal', value: url },
+    attrs: { type: 'text', readonly: true, 'aria-label': 'Emnenavn i ntfy', value: topic },
   });
 
+  const feedback = el('p', { class: 'fine-print' });
+
   return el('div', { class: 'setup-form' }, [
-    el('p', { class: 'fine-print', text: '1. Installer appen ntfy. 2. Åpne lenka under og abonner.' }),
-    linkBox,
+    el('p', { class: 'fine-print', text: '1. Installer appen ntfy (bare på denne telefonen).' }),
+    el('p', { class: 'fine-print', text: '2. Trykk + i ntfy og lim inn emnenavnet under.' }),
+    el('p', {
+      class: 'fine-print',
+      text: '3. La serveren stå som den er. Ikke slå på «Use another server» — da får du 404.',
+    }),
+    topicBox,
     el('button', {
       class: 'primary wide',
-      text: 'Åpne i ntfy',
+      text: 'Kopier emnenavn',
       attrs: { type: 'button' },
-      on: { click: () => window.open(url, '_blank', 'noopener') },
+      on: {
+        click: () => {
+          void navigator.clipboard
+            ?.writeText(topic)
+            .then(() => {
+              feedback.textContent = 'Kopiert. Lim det inn i topic-feltet i ntfy.';
+            })
+            .catch(() => {
+              topicBox.select();
+              feedback.textContent = 'Fikk ikke kopiert automatisk — merk teksten over og kopier.';
+            });
+        },
+      },
     }),
+    feedback,
     el('button', {
       class: 'ghost',
       text: 'Send testvarsel',
       attrs: { type: 'button' },
       on: { click: actions.testPush },
+    }),
+    el('button', {
+      class: 'ghost',
+      text: 'Åpne kanalen i nettleseren',
+      attrs: { type: 'button' },
+      on: { click: () => window.open(url, '_blank', 'noopener') },
     }),
     el('button', {
       class: 'ghost danger',

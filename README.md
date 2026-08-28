@@ -427,8 +427,13 @@ er lett å si noe som er feil.
 ### Varsel på låseskjermen
 
 Under tannhjulet: «Slå på varsler». Appen lager en tilfeldig ntfy-kanal,
-registrerer den i `push_targets`, og viser lenka du abonnerer på i
+registrerer den i `push_targets`, og viser **emnenavnet** du abonnerer på i
 [ntfy](https://ntfy.sh)-appen.
+
+Skjermen viser emnenavnet og ikke URL-en, med vilje. Første forsøk viste hele
+`https://ntfy.sh/handleliste-…`, og den ble limt inn i ntfys «Use another
+server»-felt — appen spurte da en server som ikke finnes og svarte 404. Det
+eneste som skal inn i skjemaet er emnenavnet; serveren skal stå urørt.
 
 Poenget med å velge ntfy framfor ekte web push: **bare mottakeren installerer
 noe.** Den som legger varer på lista trenger ingenting — nettleseren hennes
