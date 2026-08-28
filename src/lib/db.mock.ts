@@ -38,6 +38,7 @@ export function isConfigured(): boolean {
  */
 function krevNett(): void {
   if (!navigator.onLine) throw new Error('Failed to fetch');
+  pullServer();
 }
 
 let nextId = 0;
@@ -212,14 +213,22 @@ function notify(event: ChangeEvent | null = null): void {
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-const lagret = readServer();
-if (lagret !== null) {
-  items = lagret.items ?? [];
-  week = lagret.week ?? [];
-  if (lagret.meals !== null && lagret.meals !== undefined) MEALS = lagret.meals;
-  aliases = lagret.aliases ?? [];
-  pushTargets = lagret.pushTargets ?? [];
+/**
+ * To faner er to telefoner. Uten dette leser hver fane bare kopien den lastet
+ * ved oppstart, og en test av «kom endringen fram til den andre?» kan aldri
+ * feile — som er nettopp den klassen feil mock-laget har skjult før.
+ */
+function pullServer(): void {
+  const stored = readServer();
+  if (stored === null) return;
+  items = stored.items ?? [];
+  week = stored.week ?? [];
+  if (stored.meals !== null && stored.meals !== undefined) MEALS = stored.meals;
+  aliases = stored.aliases ?? [];
+  pushTargets = stored.pushTargets ?? [];
 }
+
+pullServer();
 
 export async function fetchMeals(): Promise<Meal[]> {
   krevNett();

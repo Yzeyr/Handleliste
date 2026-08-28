@@ -72,6 +72,19 @@ body {
   color: var(--muted);
 }
 
+.refresh-button { font-size: 20px; }
+.refresh-button:disabled { opacity: 1; }
+.refresh-button.spinning { animation: spin 0.7s linear infinite; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-button.spinning { animation: none; opacity: 0.4; }
+}
+
 .share-link {
   width: 100%;
   font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -596,6 +609,10 @@ textarea {
 .shopping-mode .tabs,
 .shopping-mode .settings-button,
 .shopping-mode .status { display: none; }
+
+/* Oppdater blir derimot igjen: det er nettopp i butikken man trenger å vite
+   at lista er den ferskeste. */
+.shopping-mode .refresh-button { display: block; }
 
 .shopping { display: flex; flex-direction: column; gap: 18px; }
 

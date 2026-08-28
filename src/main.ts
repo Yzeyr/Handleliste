@@ -134,6 +134,11 @@ function boot(container: HTMLElement): void {
   void start(container);
 }
 
+/** «Oppdatert 16:04» — kvitteringen på at knappen faktisk gjorde noe. */
+function clockNow(): string {
+  return new Date().toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+}
+
 async function start(container: HTMLElement): Promise<void> {
   const state: AppState = {
     items: [],
@@ -295,6 +300,12 @@ async function start(container: HTMLElement): Promise<void> {
   const seenBefore = lastSeenAt();
   const content = el('main', { class: 'content' });
   const settingsButton = createSettingsButton(() => showSettings());
+  const refreshButton = el('button', {
+    class: 'settings-button refresh-button',
+    text: '\u21bb',
+    attrs: { type: 'button', 'aria-label': 'Hent lista p\u00e5 nytt' },
+    on: { click: () => void refreshNow() },
+  });
   const tabBar = el(
     'nav',
     { class: 'tabs' },
@@ -312,6 +323,7 @@ async function start(container: HTMLElement): Promise<void> {
     el('header', { class: 'app-header' }, [
       el('h1', { text: 'Handleliste' }),
       status,
+      refreshButton,
       settingsButton,
     ]),
     connection,
@@ -598,6 +610,52 @@ async function start(container: HTMLElement): Promise<void> {
     }
     readFromStore();
   }
+
+  /**
+   * «Er lista faktisk oppdatert?» — spørsmålet realtime ikke kan svare på,
+   * fordi en telefon som har ligget i lomma har mistet forbindelsen uten å si
+   * fra. Knappen henter alt på nytt og sier hva klokka var, for en
+   * oppdateringsknapp uten kvittering gjør deg ikke sikrere enn før.
+   */
+  let refreshing = false;
+  async function refreshNow(): Promise<void> {
+    if (refreshing) return;
+    refreshing = true;
+    refreshButton.classList.add('spinning');
+    refreshButton.disabled = true;
+    try {
+      if (!store.isOnline()) {
+        showStatus('Uten nett — henter så snart nettet er tilbake');
+        return;
+      }
+      // Snurren må vare lenge nok til å sees. Uten den leser et raskt svar
+      // som at ingenting skjedde.
+      await Promise.all([
+        (async () => {
+          await store.flush();
+          await store.refreshFromServer({ meals: true });
+          readFromStore();
+        })(),
+        new Promise((done) => window.setTimeout(done, 450)),
+      ]);
+      showStatus(`Oppdatert ${clockNow()}`);
+    } catch {
+      showStatus('Fikk ikke kontakt — viser lista slik den var', true);
+    } finally {
+      refreshing = false;
+      refreshButton.classList.remove('spinning');
+      refreshButton.disabled = false;
+    }
+  }
+
+  // Samme problem, løst automatisk: når appen hentes fram igjen er
+  // realtime-forbindelsen som regel død etter tiden i lomma.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    void reload().catch(() => {
+      /* banneret sier allerede fra om nettet */
+    });
+  });
 
   // Fra telefonen først: lista er på skjermen før noe nettverk er forsøkt.
   store.loadFromDevice();

@@ -424,6 +424,16 @@ slik den var *før* endringen. Uten det kan ikke appen skille «haket av» fra
 `src/lib/changes.ts` er ren og dekket av tester nettopp fordi det er her det
 er lett å si noe som er feil.
 
+### «Er lista oppdatert?»
+
+Realtime holder som regel lista fersk av seg selv, men en telefon som har
+ligget i lomma har mistet forbindelsen uten å si fra. Derfor to ting:
+`↻` i toppen henter alt på nytt og kvitterer med klokkeslettet — en
+oppdateringsknapp uten kvittering gjør deg ikke sikrere enn før — og appen
+henter automatisk på nytt når den kommer fram i forgrunnen igjen. Knappen står
+også i handlemodus, der resten av toppen er skjult: det er nettopp i butikken
+man trenger å vite at lista er den ferskeste.
+
 ### Varsel på låseskjermen
 
 Under tannhjulet: «Slå på varsler». Appen lager en tilfeldig ntfy-kanal,
