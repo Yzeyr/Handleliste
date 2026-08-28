@@ -38,7 +38,7 @@ export function createMealsView(actions: Actions): View<AppState> {
     body,
   ]);
 
-  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [], pushTargets: [] };
 
   function render(): void {
     const inWeek = new Set(current.week.map((w) => w.meal_id));

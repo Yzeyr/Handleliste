@@ -9,6 +9,7 @@ export interface AppState {
   /** Varer den andre har endret siden appen sist var åpen her. */
   unseen: Set<string>;
   aliases: { alias: string; canonical: string }[];
+  pushTargets: { device_id: string; label: string | null; topic: string }[];
 }
 
 export interface Actions {

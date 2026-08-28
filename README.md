@@ -21,7 +21,7 @@ For ekte, delt liste:
 2. SQL Editor → kjør `supabase/setup.sql` (skjema + de 19 middagene i én fil).
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
    nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
-   `05_edit_undo_aliases.sql`, `06_manual.sql`. De legger bare til det som er
+   `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`. De legger bare til det som er
    nytt, og er trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
@@ -424,9 +424,29 @@ slik den var *før* endringen. Uten det kan ikke appen skille «haket av» fra
 `src/lib/changes.ts` er ren og dekket av tester nettopp fordi det er her det
 er lett å si noe som er feil.
 
-**Ekte push** til en telefon i lomma er ikke bygget. Det krever service
-worker, VAPID-nøkler og en Edge Function som sender — eller en tredjepart
-som ntfy. Ikke gjort, ikke halvgjort.
+### Varsel på låseskjermen
+
+Under tannhjulet: «Slå på varsler». Appen lager en tilfeldig ntfy-kanal,
+registrerer den i `push_targets`, og viser lenka du abonnerer på i
+[ntfy](https://ntfy.sh)-appen.
+
+Poenget med å velge ntfy framfor ekte web push: **bare mottakeren installerer
+noe.** Den som legger varer på lista trenger ingenting — nettleseren hennes
+POSTer varselet direkte. Web push ville krevd VAPID-nøkler og en Edge Function
+deployet fra en datamaskin, og da hadde begge måttet gjennom oppsett.
+
+Kanalene ligger i databasen, én rad per telefon, så ingen må sette opp
+hverandres kanaler for hånd. Egen kanal hoppes over ved sending, så du aldri
+varsles om det du selv gjorde.
+
+Bare **tillegg** varsles. Avhuking og fjerning skjer hele tiden, og et varsel
+per hake ville vært mas. Varselet sendes når endringen faktisk har nådd
+databasen, ikke når den ble lagt i køen — ellers ville du fått beskjed om noe
+som ennå ikke fantes for den andre.
+
+Kanalnavnet er en delt hemmelighet på en åpen tjeneste: den som gjetter det
+kan lese varslene og sende falske. Derfor er navnet 32 tilfeldige tegn.
+Innholdet er «Kari la til melk», så innsatsen er lav uansett.
 
 ## Sikkerhet — verdt å vite
 

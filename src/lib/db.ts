@@ -1,5 +1,6 @@
 import { getClient } from './supabase.ts';
-import { deviceName, loadConfig } from './config.ts';
+import { deviceId, deviceName, loadConfig } from './config.ts';
+import type { PushTarget } from './push.ts';
 import type { ChangeEvent } from './changes.ts';
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
@@ -536,4 +537,26 @@ export async function saveMeal(draft: MealDraft): Promise<string> {
 export async function deleteMeal(id: string): Promise<void> {
   const { error } = await sb().from('meals').delete().eq('id', id);
   fail('Klarte ikke å slette middagen', error);
+}
+
+// ---------------------------------------------------------------------------
+// Varselkanaler
+// ---------------------------------------------------------------------------
+
+export async function fetchPushTargets(): Promise<PushTarget[]> {
+  const { data, error } = await sb().from('push_targets').select('device_id,label,topic');
+  fail('Klarte ikke å hente varselkanaler', error);
+  return (data ?? []) as PushTarget[];
+}
+
+export async function registerPushTarget(topic: string): Promise<void> {
+  const { error } = await sb()
+    .from('push_targets')
+    .upsert({ device_id: deviceId(), label: deviceName(), topic }, { onConflict: 'device_id' });
+  fail('Klarte ikke å registrere varselkanalen', error);
+}
+
+export async function removePushTarget(): Promise<void> {
+  const { error } = await sb().from('push_targets').delete().eq('device_id', deviceId());
+  fail('Klarte ikke å slå av varsler', error);
 }

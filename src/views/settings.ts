@@ -1,17 +1,31 @@
 import { el } from '../dom.ts';
-import { buildShareLink, deviceName, isConfigFixed, loadConfig, setDeviceName } from '../lib/config.ts';
+import {
+  buildShareLink,
+  deviceName,
+  isConfigFixed,
+  loadConfig,
+  pushTopic,
+  setDeviceName,
+} from '../lib/config.ts';
+import { subscribeUrl } from '../lib/push.ts';
 
 /**
  * Innstillinger: dele oppsettet med den andre telefonen, og bytte nøkler.
  * Ikke en fane — dette er noe man gjør én gang, ikke noe man blar i.
  */
-export function createSettingsView(actions: {
+export interface SettingsActions {
   changeKeys: () => void;
   close: () => void;
   aliases: { alias: string; canonical: string }[];
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;
-}): HTMLElement {
+  enablePush: () => void;
+  disablePush: () => void;
+  testPush: () => void;
+  otherReceivers: string[];
+}
+
+export function createSettingsView(actions: SettingsActions): HTMLElement {
   const config = loadConfig();
   const link = config === null ? null : buildShareLink(config);
 
@@ -73,6 +87,9 @@ export function createSettingsView(actions: {
     copyButton,
     feedback,
     el('hr'),
+    el('h2', { class: 'view-title', text: 'Varsel på låseskjermen' }),
+    pushBlock(actions),
+    el('hr'),
     el('h2', { class: 'view-title', text: 'Samme vare, ulike navn' }),
     el('p', {
       class: 'fine-print',
@@ -94,6 +111,66 @@ export function createSettingsView(actions: {
         on: { click: actions.changeKeys },
       }),
     el('button', { class: 'ghost', text: 'Tilbake', attrs: { type: 'button' }, on: { click: actions.close } }),
+  ]);
+}
+
+/**
+ * Bare den som VIL ha varsler trenger å gjøre noe her. Den andre telefonen
+ * sender fra nettleseren og installerer ingenting.
+ */
+function pushBlock(actions: SettingsActions): HTMLElement {
+  const topic = pushTopic();
+
+  if (topic === null) {
+    return el('div', { class: 'setup-form' }, [
+      el('p', {
+        class: 'fine-print',
+        text:
+          'Få beskjed på telefonen når den andre legger noe på lista. Krever ' +
+          'gratisappen ntfy — men bare på denne telefonen. Den som legger til ' +
+          'varer trenger ingenting.',
+      }),
+      actions.otherReceivers.length > 0 &&
+        el('p', {
+          class: 'fine-print',
+          text: `Får varsler i dag: ${actions.otherReceivers.join(', ')}`,
+        }),
+      el('button', {
+        class: 'primary wide',
+        text: 'Slå på varsler',
+        attrs: { type: 'button' },
+        on: { click: actions.enablePush },
+      }),
+    ]);
+  }
+
+  const url = subscribeUrl(topic);
+  const linkBox = el('input', {
+    class: 'share-link',
+    attrs: { type: 'text', readonly: true, 'aria-label': 'Varselkanal', value: url },
+  });
+
+  return el('div', { class: 'setup-form' }, [
+    el('p', { class: 'fine-print', text: '1. Installer appen ntfy. 2. Åpne lenka under og abonner.' }),
+    linkBox,
+    el('button', {
+      class: 'primary wide',
+      text: 'Åpne i ntfy',
+      attrs: { type: 'button' },
+      on: { click: () => window.open(url, '_blank', 'noopener') },
+    }),
+    el('button', {
+      class: 'ghost',
+      text: 'Send testvarsel',
+      attrs: { type: 'button' },
+      on: { click: actions.testPush },
+    }),
+    el('button', {
+      class: 'ghost danger',
+      text: 'Slå av varsler',
+      attrs: { type: 'button' },
+      on: { click: actions.disablePush },
+    }),
   ]);
 }
 

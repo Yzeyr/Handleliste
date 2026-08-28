@@ -22,7 +22,7 @@ const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks
 export function createListView(actions: Actions): View<AppState> {
   // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.
   let known: ShoppingItem[] = [];
-  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [], pushTargets: [] };
 
   // Hvilke rader som står åpne for redigering. Holdes utenfor tegningen, så
   // en oppdatering fra den andre telefonen ikke lukker et skjema du står i.

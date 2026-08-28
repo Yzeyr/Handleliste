@@ -159,6 +159,7 @@ alter publication supabase_realtime add table public.week_plan_items;
 -- ---------------------------------------------------------------------------
 alter table public.meals               enable row level security;
 alter table public.ingredient_aliases  enable row level security;
+alter table public.push_targets        enable row level security;
 alter table public.meal_ingredients    enable row level security;
 alter table public.shopping_list_items enable row level security;
 alter table public.week_plan_items     enable row level security;
@@ -177,6 +178,10 @@ create policy "husholdning full tilgang" on public.shopping_list_items
 
 drop policy if exists "husholdning full tilgang" on public.ingredient_aliases;
 create policy "husholdning full tilgang" on public.ingredient_aliases
+  for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "husholdning full tilgang" on public.push_targets;
+create policy "husholdning full tilgang" on public.push_targets
   for all to anon, authenticated using (true) with check (true);
 
 drop policy if exists "husholdning full tilgang" on public.week_plan_items;

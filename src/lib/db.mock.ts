@@ -10,7 +10,8 @@
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
-import { deviceName, loadConfig, saveConfig } from './config.ts';
+import { deviceId, deviceName, loadConfig, saveConfig } from './config.ts';
+import type { PushTarget } from './push.ts';
 import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 import type { ChangeEvent } from './changes.ts';
 
@@ -175,6 +176,7 @@ interface ServerState {
   week: WeekPlanItem[];
   meals: Meal[] | null;
   aliases: { alias: string; canonical: string }[];
+  pushTargets: PushTarget[];
 }
 
 function readServer(): ServerState | null {
@@ -188,7 +190,10 @@ function readServer(): ServerState | null {
 
 function writeServer(): void {
   try {
-    window.localStorage.setItem(SERVER_KEY, JSON.stringify({ items, week, meals: MEALS, aliases }));
+    window.localStorage.setItem(
+      SERVER_KEY,
+      JSON.stringify({ items, week, meals: MEALS, aliases, pushTargets }),
+    );
   } catch {
     /* full lagring: da oppfører den seg som før, bare i minnet */
   }
@@ -197,6 +202,7 @@ function writeServer(): void {
 let items: ShoppingItem[] = [];
 let week: WeekPlanItem[] = [];
 let aliases: { alias: string; canonical: string }[] = [];
+let pushTargets: PushTarget[] = [];
 const listeners = new Set<(event: ChangeEvent | null) => void>();
 
 function notify(event: ChangeEvent | null = null): void {
@@ -212,6 +218,7 @@ if (lagret !== null) {
   week = lagret.week ?? [];
   if (lagret.meals !== null && lagret.meals !== undefined) MEALS = lagret.meals;
   aliases = lagret.aliases ?? [];
+  pushTargets = lagret.pushTargets ?? [];
 }
 
 export async function fetchMeals(): Promise<Meal[]> {
@@ -591,4 +598,25 @@ export async function updateItemById(
   const found = items.find((row) => row.id === itemId);
   if (found === undefined) return;
   await updateItem(found, patch);
+}
+
+// --- Varselkanaler, samme API som db.ts ---
+
+export async function fetchPushTargets(): Promise<PushTarget[]> {
+  krevNett();
+  return clone(pushTargets);
+}
+
+export async function registerPushTarget(topic: string): Promise<void> {
+  krevNett();
+  const id = deviceId();
+  pushTargets = [...pushTargets.filter((t) => t.device_id !== id), { device_id: id, label: deviceName(), topic }];
+  notify();
+}
+
+export async function removePushTarget(): Promise<void> {
+  krevNett();
+  const id = deviceId();
+  pushTargets = pushTargets.filter((t) => t.device_id !== id);
+  notify();
 }

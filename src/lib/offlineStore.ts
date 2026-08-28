@@ -20,12 +20,14 @@ import * as db from './db.ts';
 import { deviceName } from './config.ts';
 import * as local from './localStore.ts';
 import { describeIntent, type Intent, type QueuedIntent } from './intent.ts';
+import { notifyOthers, type PushTarget } from './push.ts';
 import type { Meal, ShoppingItem, WeekPlanItem } from './types.ts';
 
 const SNAPSHOT_KEY = 'handleliste.kopi';
 const QUEUE_KEY = 'handleliste.ko';
 const MEALS_KEY = 'handleliste.middager';
 const ALIAS_KEY = 'handleliste.synonymer';
+const TARGET_KEY = 'handleliste.varselmottakere';
 
 export interface Snapshot {
   state: local.LocalState;
@@ -44,6 +46,7 @@ let state: local.LocalState = local.emptyState();
 let meals: Meal[] = [];
 let queue: QueuedIntent[] = [];
 let aliases: { alias: string; canonical: string }[] = [];
+let pushTargets: PushTarget[] = [];
 let savedAt: string | null = null;
 let lastError: string | null = null;
 let flushing = false;
@@ -87,6 +90,7 @@ function persist(): void {
   writeJson(QUEUE_KEY, queue);
   writeJson(MEALS_KEY, meals);
   writeJson(ALIAS_KEY, aliases);
+  writeJson(TARGET_KEY, pushTargets);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +124,7 @@ export function loadFromDevice(): void {
   }
   meals = readJson<Meal[]>(MEALS_KEY, []);
   aliases = readJson<{ alias: string; canonical: string }[]>(ALIAS_KEY, []);
+  pushTargets = readJson<PushTarget[]>(TARGET_KEY, []);
   queue = readJson<QueuedIntent[]>(QUEUE_KEY, []);
 }
 
@@ -132,6 +137,14 @@ export const registerItems = (): ShoppingItem[] => local.registerItems(state);
 export const weekItems = (): WeekPlanItem[] => state.week.map((entry) => ({ ...entry }));
 export const allMeals = (): Meal[] => meals;
 export const allAliases = (): { alias: string; canonical: string }[] => aliases;
+export const allPushTargets = (): PushTarget[] => pushTargets;
+
+export async function refreshPushTargets(): Promise<PushTarget[]> {
+  pushTargets = await db.fetchPushTargets();
+  persist();
+  announce();
+  return pushTargets;
+}
 
 /** Middagene ligger også på telefonen, så oppskriftene er der uten nett. */
 export async function refreshMeals(): Promise<Meal[]> {
@@ -267,6 +280,10 @@ export async function flush(): Promise<void> {
       const next = queue[0]!;
       try {
         await send(next.intent);
+        // Først nå finnes endringen for den andre telefonen. Å varsle når
+        // handlingen ble lagt i køen ville betydd et varsel om noe som ennå
+        // ikke var der — og som kanskje aldri kom fram.
+        void announceToOthers(next.intent);
       } catch (error) {
         if (looksLikeNetworkTrouble(error)) {
           lastError = null;
@@ -288,6 +305,24 @@ export async function flush(): Promise<void> {
     flushing = false;
     announce();
   }
+}
+
+/**
+ * Bare tillegg varsles. Avhuking og fjerning skjer hele tiden, og et varsel
+ * per hake ville vært mas — det man vil vite er at det kom noe nytt på lista.
+ */
+async function announceToOthers(intent: Intent): Promise<void> {
+  if (intent.kind !== 'addPending' && intent.kind !== 'revive') return;
+
+  let message = describeIntent(intent);
+  if (intent.kind === 'addPending' && intent.pending.length > 1) {
+    message = `la til ${intent.pending.length} varer`;
+  }
+  if (intent.kind === 'revive') {
+    const item = state.items.find((row) => row.id === intent.id);
+    message = item === undefined ? 'la til en vare' : `la til ${item.name}`;
+  }
+  await notifyOthers(pushTargets, message);
 }
 
 /** Kobles på ved oppstart: send køen så snart telefonen har nett igjen. */

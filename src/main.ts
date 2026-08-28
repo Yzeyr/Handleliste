@@ -16,7 +16,18 @@ import { watchForAppUpdate } from './lib/appUpdate.ts';
 import { normalizeUnit } from './lib/units.ts';
 import type { Intent } from './lib/intent.ts';
 import { createSetupView } from './views/setup.ts';
-import { applyShareLink, clearConfig, deviceName, isConfigFixed, lastSeenAt, markSeenNow } from './lib/config.ts';
+import {
+  applyShareLink,
+  clearConfig,
+  deviceId,
+  deviceName,
+  isConfigFixed,
+  lastSeenAt,
+  markSeenNow,
+  pushTopic,
+  setPushTopic,
+} from './lib/config.ts';
+import { freshTopic, sendTest } from './lib/push.ts';
 import { describeChange, summarizeChanges, type ChangeEvent } from './lib/changes.ts';
 import { createSettingsButton, createSettingsView } from './views/settings.ts';
 import { resetClient } from './lib/supabase.ts';
@@ -124,7 +135,15 @@ function boot(container: HTMLElement): void {
 }
 
 async function start(container: HTMLElement): Promise<void> {
-  const state: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [] };
+  const state: AppState = {
+    items: [],
+    meals: [],
+    week: [],
+    register: [],
+    unseen: new Set(),
+    aliases: [],
+    pushTargets: [],
+  };
   let tab: TabId = 'liste';
 
   const actions: Actions = {
@@ -314,6 +333,37 @@ async function start(container: HTMLElement): Promise<void> {
         aliases: state.aliases,
         addAlias: actions.addAlias,
         removeAlias: actions.removeAlias,
+        enablePush: () =>
+          run(async () => {
+            const topic = pushTopic() ?? freshTopic();
+            setPushTopic(topic);
+            await db.registerPushTarget(topic);
+            await store.refreshPushTargets();
+            showSettings();
+          }),
+        disablePush: () =>
+          run(async () => {
+            await db.removePushTarget();
+            setPushTopic(null);
+            await store.refreshPushTargets();
+            showSettings();
+          }),
+        testPush: () =>
+          run(async () => {
+            const topic = pushTopic();
+            if (topic === null) return;
+            const ok = await sendTest(topic);
+            showStatus(
+              ok
+                ? 'Testvarsel sendt. Sjekk ntfy.'
+                : 'Fikk ikke sendt. Har telefonen nett?',
+              !ok,
+            );
+          }),
+        // Hvem som allerede får varsler, så man ser om det er satt opp.
+        otherReceivers: state.pushTargets
+          .filter((target) => target.device_id !== deviceId())
+          .map((target) => target.label ?? 'En telefon'),
       }),
     ]);
   }
@@ -562,9 +612,15 @@ async function start(container: HTMLElement): Promise<void> {
   const hadNothing = state.items.length === 0 && state.meals.length === 0;
   if (hadNothing) showStatus('Kobler til …');
 
-  // Synonymene er greie å ha, men ingen grunn til å stoppe oppstarten for.
+  // Synonymene og varselkanalene er greie å ha, men ingen grunn til å stoppe
+  // oppstarten for.
   try {
     await refreshAliases();
+  } catch {
+    /* beholder de lagrede */
+  }
+  try {
+    await store.refreshPushTargets();
   } catch {
     /* beholder de lagrede */
   }

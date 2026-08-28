@@ -140,3 +140,43 @@ export function markSeenNow(): void {
     // se over
   }
 }
+
+// ---------------------------------------------------------------------------
+// Varsler
+// ---------------------------------------------------------------------------
+
+const DEVICE_KEY = 'handleliste.telefonId';
+const TOPIC_KEY = 'handleliste.varselkanal';
+
+/** Fast id for denne telefonen, så den kjenner igjen sin egen varselkanal. */
+export function deviceId(): string {
+  try {
+    const existing = window.localStorage.getItem(DEVICE_KEY);
+    if (existing !== null && existing !== '') return existing;
+    const fresh = crypto.randomUUID();
+    window.localStorage.setItem(DEVICE_KEY, fresh);
+    return fresh;
+  } catch {
+    // Uten lagring får telefonen ny id hver gang. Varsler virker fortsatt,
+    // den kan i verste fall komme til å sende til seg selv.
+    return crypto.randomUUID();
+  }
+}
+
+export function pushTopic(): string | null {
+  try {
+    const topic = window.localStorage.getItem(TOPIC_KEY);
+    return topic === null || topic === '' ? null : topic;
+  } catch {
+    return null;
+  }
+}
+
+export function setPushTopic(topic: string | null): void {
+  try {
+    if (topic === null) window.localStorage.removeItem(TOPIC_KEY);
+    else window.localStorage.setItem(TOPIC_KEY, topic);
+  } catch {
+    /* se over */
+  }
+}
