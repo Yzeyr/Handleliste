@@ -53,3 +53,57 @@ export function saveConfig(config: SupabaseConfig): void {
 export function clearConfig(): void {
   window.localStorage.removeItem(STORAGE_KEY);
 }
+
+// ---------------------------------------------------------------------------
+// Deling mellom telefoner
+//
+// Å taste inn en anon-nøkkel for hånd på mobil er ikke aktuelt, så nøklene kan
+// sendes som en lenke: den som allerede har satt opp appen kopierer en lenke
+// med oppsettet i fragmentet, den andre åpner den, og appen lagrer det.
+//
+// Fragmentet (#...) sendes aldri til serveren, så nøkkelen havner ikke i noen
+// tjenerlogg. Den ligger derimot i meldingen dere sender den i, og i
+// nettleserhistorikken — men det er samme nøkkel som uansett ligger i
+// nettverkstrafikken til appen, se sikkerhetsavsnittet i README.
+// ---------------------------------------------------------------------------
+
+const HASH_PARAM = 'k';
+
+function toBase64Url(value: string): string {
+  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(value: string): string {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+  return atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+}
+
+export function buildShareLink(config: SupabaseConfig): string {
+  const payload = toBase64Url(JSON.stringify([config.url, config.anonKey]));
+  const { origin, pathname } = window.location;
+  return `${origin}${pathname}#${HASH_PARAM}=${payload}`;
+}
+
+/**
+ * Leser oppsett fra lenka appen ble åpnet med, lagrer det, og fjerner
+ * fragmentet igjen så nøkkelen ikke blir stående i adressefeltet.
+ * Returnerer om noe faktisk ble tatt i bruk.
+ */
+export function applyShareLink(): boolean {
+  const match = new RegExp(`[#&]${HASH_PARAM}=([A-Za-z0-9_-]+)`).exec(window.location.hash);
+  if (match === null || match[1] === undefined) return false;
+
+  try {
+    const parsed: unknown = JSON.parse(fromBase64Url(match[1]));
+    if (!Array.isArray(parsed) || parsed.length !== 2) return false;
+    const [url, anonKey] = parsed;
+    if (typeof url !== 'string' || typeof anonKey !== 'string') return false;
+    if (!/^https:\/\/[^\s/]+/.test(url) || anonKey === '') return false;
+    saveConfig({ url, anonKey });
+  } catch {
+    return false;
+  }
+
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  return true;
+}

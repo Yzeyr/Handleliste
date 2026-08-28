@@ -6,7 +6,8 @@ import { createListView } from './views/list.ts';
 import { createMealsView } from './views/meals.ts';
 import { createWeekView } from './views/week.ts';
 import { createSetupView } from './views/setup.ts';
-import { clearConfig, isConfigFixed } from './lib/config.ts';
+import { applyShareLink, clearConfig, isConfigFixed } from './lib/config.ts';
+import { createSettingsButton, createSettingsView } from './views/settings.ts';
 import { resetClient } from './lib/supabase.ts';
 
 type TabId = 'liste' | 'middager' | 'uke';
@@ -20,6 +21,8 @@ const TABS: { id: TabId; label: string }[] = [
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root === null) throw new Error('Fant ikke #app');
 
+// En delingslenke fra den andre telefonen setter opp appen før noe annet.
+applyShareLink();
 boot(root);
 
 function boot(container: HTMLElement): void {
@@ -89,6 +92,7 @@ async function start(container: HTMLElement): Promise<void> {
 
   const status = el('div', { class: 'status', attrs: { role: 'status' } });
   const content = el('main', { class: 'content' });
+  const settingsButton = createSettingsButton(() => showSettings());
   const tabBar = el(
     'nav',
     { class: 'tabs' },
@@ -103,10 +107,28 @@ async function start(container: HTMLElement): Promise<void> {
   );
 
   replaceChildren(container, [
-    el('header', { class: 'app-header' }, [el('h1', { text: 'Handleliste' }), status]),
+    el('header', { class: 'app-header' }, [
+      el('h1', { text: 'Handleliste' }),
+      status,
+      settingsButton,
+    ]),
     content,
     tabBar,
   ]);
+
+  function showSettings(): void {
+    for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
+    replaceChildren(content, [
+      createSettingsView({
+        changeKeys: () => {
+          clearConfig();
+          resetClient();
+          boot(container);
+        },
+        close: () => setTab(tab),
+      }),
+    ]);
+  }
 
   let statusTimer: number | undefined;
   function showStatus(message: string, isError = false): void {

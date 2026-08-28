@@ -42,7 +42,10 @@ Etter en kodeendring: `npm run build:single`, og commit `docs/index.html`
 sammen med endringen.
 
 Nøklene spørres om i appen og lagres i `localStorage` på hver telefon, så
-fila trenger ikke bygges på nytt når dere har opprettet prosjektet. Vil du
+fila trenger ikke bygges på nytt når dere har opprettet prosjektet. Telefon
+nummer to slipper å taste noe: tannhjulet i appen gir en delingslenke med
+oppsettet i fragmentet (`#k=...`), og den som åpner den er koblet til med én
+gang. Vil du
 heller bake dem inn ved bygging, legg dem i `.env` før `npm run build:single`
 — da hopper appen rett til lista.
 
@@ -186,6 +189,10 @@ Appen har **ingen innlogging**. Den bruker Supabase sin anon-nøkkel, og den
 nøkkelen ligger i JS-bundelen som lastes ned til telefonen. RLS-policyene
 gir `anon` full lese- og skrivetilgang. I praksis: den som finner URL-en til
 appen kan lese og endre handlelista deres.
+
+Delingslenka endrer ikke på dette: fragmentet sendes aldri til noen server,
+men nøkkelen ligger i meldingen dere sender lenka i, og den er uansett
+synlig i appens nettverkstrafikk.
 
 For en handleliste for to er det en helt grei avveining, og det er derfor
 det er satt opp sånn. Men det er en reell åpning, ikke noe jeg har gjemt

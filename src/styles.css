@@ -59,7 +59,25 @@ body {
 
 .app-header h1 { margin: 0; font-size: 20px; }
 
-.status { font-size: 13px; color: var(--muted); }
+.status { font-size: 13px; color: var(--muted); flex: 1; min-width: 0; }
+
+.settings-button {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.share-link {
+  width: 100%;
+  font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
 .status.error { color: var(--danger); }
 
 /* ---------- layout ---------- */
