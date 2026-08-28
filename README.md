@@ -454,8 +454,11 @@ Kanalene ligger i databasen, én rad per telefon, så ingen må sette opp
 hverandres kanaler for hånd. Egen kanal hoppes over ved sending, så du aldri
 varsles om det du selv gjorde.
 
-Bare **tillegg** varsles. Avhuking og fjerning skjer hele tiden, og et varsel
-per hake ville vært mas. Varselet sendes når endringen faktisk har nådd
+Bare det som gjør lista **lengre** varsles: nye varer, varer lagt inn igjen
+fra Varer-fanen, og det å hake av en allerede avhuket vare. Det siste hører
+hjemme i gruppa fordi det betyr «denne trenger vi likevel» — samme nyhet som
+et tillegg, og det gjøres sjelden. Avhuking og fjerning er stille: de skjer i
+dusinvis i én butikk, og et varsel per hake er mas man skrur av. Varselet sendes når endringen faktisk har nådd
 databasen, ikke når den ble lagt i køen — ellers ville du fått beskjed om noe
 som ennå ikke fantes for den andre.
 

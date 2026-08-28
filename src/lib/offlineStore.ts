@@ -307,22 +307,37 @@ export async function flush(): Promise<void> {
   }
 }
 
-/**
- * Bare tillegg varsles. Avhuking og fjerning skjer hele tiden, og et varsel
- * per hake ville vært mas — det man vil vite er at det kom noe nytt på lista.
- */
 async function announceToOthers(intent: Intent): Promise<void> {
-  if (intent.kind !== 'addPending' && intent.kind !== 'revive') return;
-
-  let message = describeIntent(intent);
-  if (intent.kind === 'addPending' && intent.pending.length > 1) {
-    message = `la til ${intent.pending.length} varer`;
-  }
-  if (intent.kind === 'revive') {
-    const item = state.items.find((row) => row.id === intent.id);
-    message = item === undefined ? 'la til en vare' : `la til ${item.name}`;
-  }
+  const message = announcement(intent);
+  if (message === null) return;
   await notifyOthers(pushTargets, message);
+}
+
+const nameOf = (id: string): string | null =>
+  state.items.find((row) => row.id === id)?.name ?? null;
+
+/**
+ * Varsler bare det som gjør lista lengre. Avhuking og fjerning skjer i
+ * dusinvis i én butikk, og et varsel per hake er mas man skrur av.
+ *
+ * Å hake av en allerede avhuket vare hører derimot til den første gruppa: det
+ * betyr «denne trenger vi likevel», altså nøyaktig samme nyhet som et tillegg,
+ * og det gjøres sjelden.
+ */
+function announcement(intent: Intent): string | null {
+  switch (intent.kind) {
+    case 'addPending':
+      return intent.pending.length > 1
+        ? `la til ${intent.pending.length} varer`
+        : describeIntent(intent);
+    case 'revive':
+      return `la til ${nameOf(intent.id) ?? 'en vare'}`;
+    case 'setChecked':
+      if (intent.checked) return null;
+      return `la ${nameOf(intent.id) ?? 'en vare'} tilbake på lista`;
+    default:
+      return null;
+  }
 }
 
 /** Kobles på ved oppstart: send køen så snart telefonen har nett igjen. */
