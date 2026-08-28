@@ -11,6 +11,13 @@
  * bedre å vise hva den fant enn å lagre noe du ikke har sett.
  */
 import { normalizeUnit, unitDefinition } from './units.ts';
+import {
+  convertFahrenheit,
+  convertUsUnit,
+  looksEnglish,
+  readUsUnit,
+  translateIngredient,
+} from './english.ts';
 import type { Category, MealDraft } from './types.ts';
 
 /** Enheter uten omregning, men som fortsatt er enheter i en oppskrift. */
@@ -37,9 +44,13 @@ const FRACTIONS: Record<string, number> = {
 };
 
 /** Overskrifter som skiller ingredienser fra framgangsmåte. */
-const STEP_HEADINGS = /^(slik\s+(gj(ø|o)r|lager)\s+du|fram?gangsm(å|a)te|tilberedning|slik\s+gj(ø|o)r\s+man|metode)\b/i;
-const SKIP_HEADINGS = /^(ingredienser|du\s+trenger|tilbeh(ø|o)r|dette\s+trenger\s+du)\s*:?\s*$/i;
-const SERVINGS = /(\d+)\s*porsjon/i;
+const STEP_HEADINGS =
+  /^(slik\s+(gj(ø|o)r|lager)\s+du|fram?gangsm(å|a)te|tilberedning|slik\s+gj(ø|o)r\s+man|metode|instructions?|directions?|method|preparation|steps)\b\s*:?\s*$/i;
+const SKIP_HEADINGS =
+  /^(ingredienser|du\s+trenger|tilbeh(ø|o)r|dette\s+trenger\s+du|ingredients|you(\s+will)?\s+need)\s*:?\s*$/i;
+const SERVINGS = /(\d+)\s*porsjon|(?:serves|servings|yield|makes)\s*:?\s*(\d+)|(\d+)\s*servings/i;
+/** Linjer som bare oppgir antall porsjoner, på norsk eller engelsk. */
+const SERVINGS_ONLY = /^\s*(?:\d+\s*porsjon\w*|(?:serves|servings|yield|makes)\s*:?\s*\d+|\d+\s*servings?)\s*$/i;
 
 /** Grovsortering til butikk-kategori. Et forslag, ikke en fasit. */
 const CATEGORY_HINTS: [Category, RegExp][] = [
@@ -86,21 +97,22 @@ export function parseRecipe(text: string): ParseResult {
     if (SKIP_HEADINGS.test(line)) continue;
 
     const servings = SERVINGS.exec(line);
-    if (servings !== null && servings[1] !== undefined) {
-      draft.servings = Math.max(1, Number(servings[1]));
-      // "4 porsjoner" på egen linje er ikke en ingrediens.
-      if (/^\s*\d+\s*porsjon\w*\s*$/i.test(line)) continue;
+    if (servings !== null) {
+      const tall = servings[1] ?? servings[2] ?? servings[3];
+      if (tall !== undefined) draft.servings = Math.max(1, Number(tall));
+      // "4 porsjoner" eller "Serves 6" på egen linje er ikke en ingrediens.
+      if (SERVINGS_ONLY.test(line)) continue;
     }
 
     if (inSteps) {
-      draft.steps.push(line.replace(/^\d+[.)]\s*/, ''));
+      draft.steps.push(convertFahrenheit(line.replace(/^\d+[.)]\s*/, '')));
       continue;
     }
 
     // Nummererte linjer er framgangsmåte selv uten overskrift.
     if (/^\d+[.)]\s+\D/.test(line) && sawIngredient) {
       inSteps = true;
-      draft.steps.push(line.replace(/^\d+[.)]\s*/, ''));
+      draft.steps.push(convertFahrenheit(line.replace(/^\d+[.)]\s*/, '')));
       continue;
     }
 
@@ -141,9 +153,10 @@ export function parseIngredientLine(line: string): MealDraft['ingredients'][numb
   const reversed = /^(.*[^\d\s]),\s*([\d½¼¾⅓⅔].*)$/.exec(line);
   const candidate = reversed !== null ? `${reversed[2]} ${reversed[1]}` : line;
 
-  const match = /^((?:\d+(?:[.,]\d+)?|[½¼¾⅓⅔])(?:\s*[-–]\s*\d+(?:[.,]\d+)?)?(?:\s+[½¼¾⅓⅔])?)\s+(.*)$/.exec(
-    candidate,
-  );
+  const NUMBER = String.raw`\d+(?:[.,]\d+)?(?:\/\d+)?|[½¼¾⅓⅔]`;
+  const match = new RegExp(
+    `^((?:${NUMBER})(?:\\s*[-–]\\s*(?:${NUMBER}))?(?:\\s+(?:${NUMBER}))?)\\s+(.*)$`,
+  ).exec(candidate);
   if (match === null || match[1] === undefined || match[2] === undefined) return null;
 
   const amount = readAmount(match[1]);
@@ -151,19 +164,36 @@ export function parseIngredientLine(line: string): MealDraft['ingredients'][numb
 
   let rest = match[2].trim();
   let unit = 'stk';
+  let value = amount;
 
-  const firstWord = /^([a-zA-ZæøåÆØÅ]+)\.?\s*/.exec(rest);
-  if (firstWord !== null && firstWord[1] !== undefined && isUnit(firstWord[1])) {
-    unit = normalizeUnit(firstWord[1]);
-    rest = rest.slice(firstWord[0].length).trim();
+  // Amerikansk enhet først: «cups» er ikke en norsk enhet, men det er nettopp
+  // derfor den må kjennes igjen — ellers blir «2 cups flour» til to stykk
+  // «cups flour».
+  const us = readUsUnit(rest);
+  if (us !== null) {
+    const converted = convertUsUnit(amount, us.unit);
+    if (converted !== null) {
+      value = converted.amount;
+      unit = converted.unit;
+      rest = us.rest;
+    }
+  } else {
+    const firstWord = /^([a-zA-ZæøåÆØÅ]+)\.?\s*/.exec(rest);
+    if (firstWord !== null && firstWord[1] !== undefined && isUnit(firstWord[1])) {
+      unit = normalizeUnit(firstWord[1]);
+      rest = rest.slice(firstWord[0].length).trim();
+    }
   }
 
-  const name = cleanIngredientName(rest);
-  if (name === '') return null;
+  const cleaned = cleanIngredientName(rest);
+  if (cleaned === '') return null;
+  // Oversett bare når linja faktisk er engelsk. Ellers ville en norsk
+  // oppskrift blitt «rettet» på ordene språkene deler.
+  const name = looksEnglish(line) ? translateIngredient(cleaned) : cleaned;
 
   return {
     name: capitalise(name),
-    amount,
+    amount: value,
     unit,
     category: guessCategory(name),
   };
@@ -207,6 +237,17 @@ function readAmount(raw: string): number | null {
       total += fraction;
       found = true;
       continue;
+    }
+    // Amerikanske oppskrifter skriver brøken ut: "1/2 cup", "1 1/2 cups".
+    const written = /^(\d+)\/(\d+)$/.exec(token);
+    if (written !== null) {
+      const over = Number(written[1]);
+      const under = Number(written[2]);
+      if (under > 0) {
+        total += over / under;
+        found = true;
+        continue;
+      }
     }
     const value = Number(token.replace(',', '.'));
     if (Number.isFinite(value)) {

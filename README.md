@@ -401,6 +401,40 @@ Den takler kulepunkter, `400–600 g` (bruker det laveste), brøker som `1 ½`,
 desimalkomma, `Kjøttdeig, 400 g`, presiseringer i parentes, og skiller
 framgangsmåte fra ingredienser på overskrift eller nummererte linjer.
 
+### Amerikanske oppskrifter
+
+Limer du inn en engelsk oppskrift, oversettes enheter og ingrediensnavn.
+`src/lib/english.ts` er to ordbøker, ikke språkforståelse — og det som ikke
+står i dem, står urørt igjen. En linje som kommer uendret gjennom er lett å
+rette i skjemaet; en linje som er gjettet feil ser riktig ut og blir stående.
+
+**Volum blir volum, vekt blir vekt.** «2 cups flour» blir 4,7 dl mel, ikke
+240 g. Å gå fra volum til vekt krever en tetthet per ingrediens (mel ≈ 120
+g/cup, sukker ≈ 200, smør ≈ 227), og bommer man der, er bakingen ødelagt.
+Norske oppskrifter måler mel og sukker i dl hele tiden, så dl er et ekte norsk
+mål her — ikke en snarvei rundt et vanskelig problem. Unntaket er `stick`, som
+per definisjon er en vektenhet: én stick smør er 113 g uansett hva den fyller.
+
+`tbsp` og `tsp` blir `ss` og `ts` uten omregning. Forskjellen er 0,2 ml; å
+skrive 1,97 ss ville vært presist og ubrukelig. Derimot rundes de **ikke** til
+hele tall: «1/2 tsp» avrundet til 1 ts er dobbelt så mye krydder.
+
+**Oversettelsen krever entydig bevis på at linja er engelsk** — en amerikansk
+enhet, eller et ingrediensord som ikke også er norsk. Uten den terskelen ble
+«2 stk paprika» i en norsk oppskrift til paprikapulver: på norsk er paprika
+grønnsaken, på engelsk krydderet. Ordene språkene deler står i en egen liste
+og teller ikke som bevis. Dekket av test, i begge retninger.
+
+Sammensatte navn slår enkeltord, så «heavy cream» blir fløte og ikke en tung
+«cream», og «ground beef» blir kjøttdeig og ikke «beef».
+
+Ovnstemperaturer i framgangsmåten regnes om og rundes til nærmeste fem grader
+— 176,7 °C er ikke noe man kan stille en ovn på.
+
+**Framgangsmåten oversettes ikke.** Det er hele setninger, altså språk, ikke
+oppslag. En maskinoversatt matlagingsinstruksjon som er litt feil er verre enn
+en engelsk som er riktig.
+
 **Hvorfor ikke en nettadresse:** en nettside i nettleseren får ikke lov å
 hente innhold fra andre domener (CORS). URL-import ville krevd en server i
 mellom — en Edge Function — som må deployes fra en datamaskin. Teksten gir
