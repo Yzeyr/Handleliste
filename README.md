@@ -339,6 +339,28 @@ blir loggen stående med `item_id = null` og navnet i behold.
 Vil du se den: `select name, bought_at from purchases order by bought_at desc`
 i SQL-editoren.
 
+## Husk før du går inn
+
+En smal stripe rett over «Start handling»: **Husk — Handlenett**. Trykk på den
+i butikkdøra, så er den borte resten av dagen.
+
+Tre valg som gjør at den ikke blir tapet på veggen:
+
+- **Den vises bare når det står noe uhaket på lista.** Har du ingenting å
+  handle, skal ingen linje minne deg på handlenett. Den regelen fjerner
+  mesteparten av støyen uten at appen må gjette om du er på vei ut.
+- **Kvitteringen varer én dag.** Du åpner appen mange ganger daglig; å bli
+  minnet på det samme etter at du har svart, er nettopp det som gjør at man
+  slutter å lese. Neste dag er den tilbake, uten at appen trenger å forstå hva
+  en handletur er.
+- **Den ligger over «Start handling»,** ikke i lista. Et fast punkt blant
+  varene ville blitt en linje du slutter å se, og du oppdager den først inne i
+  butikken — der den ikke hjelper.
+
+Lagres i `localStorage` på den ene telefonen, ikke i den delte basen: om *du*
+har nettet med er ikke noe samboeren skal se haket av. Innholdet redigeres
+under tannhjulet; «Handlenett» er der fra start.
+
 ## Handlemodus
 
 «🛒 Start handling» øverst på lista tar over hele skjermen. Faner, skjema,

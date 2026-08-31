@@ -3,6 +3,7 @@ import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem
 import { parseIngredientLine } from '../lib/parseRecipe.ts';
 import { categoryForName } from '../lib/facts.ts';
 import { normalizeName } from '../lib/normalize.ts';
+import { acknowledge, loadAcknowledged, loadReminders, pendingReminders, today } from '../lib/reminders.ts';
 import { formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
 
@@ -330,10 +331,48 @@ export function createListView(actions: Actions): View<AppState> {
   );
 
   const banner = el('div');
+  const remindBand = el('div', { class: 'remind' });
   const shoppingEntry = el('div');
+
+  /**
+   * «Husk før du går inn». Står rett over «Start handling», fordi det er den
+   * knappen du ser i butikkdøra — og bare når det faktisk står noe uhaket på
+   * lista.
+   */
+  function renderReminders(igjen: number): void {
+    const pending = igjen === 0
+      ? []
+      : pendingReminders(loadReminders(), loadAcknowledged(), today());
+
+    replaceChildren(remindBand, [
+      pending.length > 0 && el('span', { class: 'remind-label', text: 'Husk' }),
+      ...pending.map((name) =>
+        el('button', {
+          class: 'remind-chip',
+          text: name,
+          attrs: { type: 'button', 'aria-label': `${name} — jeg har den` },
+          on: {
+            click: () => {
+              acknowledge(name);
+              renderReminders(igjen);
+            },
+          },
+        }),
+      ),
+    ]);
+    remindBand.classList.toggle('visible', pending.length > 0);
+  }
   const body = el('div', { class: 'list-body' });
   const footer = el('div', { class: 'list-footer' });
-  const element = el('section', { class: 'view' }, [form, pasteBox, shoppingEntry, banner, body, footer]);
+  const element = el('section', { class: 'view' }, [
+    form,
+    pasteBox,
+    remindBand,
+    shoppingEntry,
+    banner,
+    body,
+    footer,
+  ]);
 
   function update(state: AppState): void {
     current = state;
@@ -376,6 +415,7 @@ export function createListView(actions: Actions): View<AppState> {
     // Inngangen til handlemodus står øverst, ikke i bunnen: du åpner appen i
     // butikkdøra og skal ikke måtte scrolle forbi hele lista for å finne den.
     const igjen = state.items.filter((item) => !item.checked).length;
+    renderReminders(igjen);
     replaceChildren(shoppingEntry, [
       el('div', { class: 'row' }, [
         igjen > 0 &&

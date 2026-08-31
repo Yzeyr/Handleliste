@@ -1,4 +1,4 @@
-import { el } from '../dom.ts';
+import { el, replaceChildren } from '../dom.ts';
 import {
   buildShareLink,
   deviceName,
@@ -8,6 +8,7 @@ import {
   setDeviceName,
 } from '../lib/config.ts';
 import { subscribeUrl } from '../lib/push.ts';
+import { loadReminders, saveReminders } from '../lib/reminders.ts';
 
 /**
  * Innstillinger: dele oppsettet med den andre telefonen, og bytte nøkler.
@@ -89,6 +90,15 @@ export function createSettingsView(actions: SettingsActions): HTMLElement {
     el('hr'),
     el('h2', { class: 'view-title', text: 'Varsel på låseskjermen' }),
     pushBlock(actions),
+    el('hr'),
+    el('h2', { class: 'view-title', text: 'Husk før du går inn' }),
+    el('p', {
+      class: 'fine-print',
+      text:
+        'Vises over «Start handling» når det står noe uhaket på lista. Trykk på ' +
+        'den i butikkdøra, så er den borte resten av dagen. Bare på denne telefonen.',
+    }),
+    reminderList(),
     el('hr'),
     el('h2', { class: 'view-title', text: 'Samme vare, ulike navn' }),
     el('p', {
@@ -202,6 +212,62 @@ function pushBlock(actions: SettingsActions): HTMLElement {
       on: { click: actions.disablePush },
     }),
   ]);
+}
+
+/** Husk-lista. Egen redigering her, siden den settes én gang og leses ofte. */
+function reminderList(): HTMLElement {
+  const block = el('div', { class: 'alias-block' });
+  const input = el('input', {
+    class: 'grow',
+    attrs: { type: 'text', placeholder: 'Handlenett, pant …', 'aria-label': 'Ny huskelapp', autocomplete: 'off' },
+  });
+
+  function render(): void {
+    const list = loadReminders();
+    replaceChildren(block, [
+      el(
+        'ul',
+        { class: 'alias-list' },
+        list.map((name) =>
+          el('li', {}, [
+            el('span', { text: name }),
+            el('button', {
+              class: 'item-remove',
+              text: '×',
+              attrs: { type: 'button', 'aria-label': `Slett ${name}` },
+              on: {
+                click: () => {
+                  saveReminders(list.filter((row) => row !== name));
+                  render();
+                },
+              },
+            }),
+          ]),
+        ),
+      ),
+      list.length === 0 && el('p', { class: 'fine-print', text: 'Ingenting å huske på.' }),
+      el('div', { class: 'row' }, [
+        input,
+        el('button', {
+          class: 'ghost',
+          text: '+ Legg til',
+          attrs: { type: 'button' },
+          on: {
+            click: () => {
+              const name = input.value.trim();
+              if (name === '' || list.includes(name)) return;
+              saveReminders([...list, name]);
+              input.value = '';
+              render();
+            },
+          },
+        }),
+      ]),
+    ]);
+  }
+
+  render();
+  return block;
 }
 
 function aliasList(actions: {

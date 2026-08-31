@@ -107,6 +107,42 @@ body {
 
 .card-file { padding: 10px; }
 
+/* «Husk før du går inn». Skal legge seg merke til uten å rope: en tydelig
+   ramme og appens grønnfarge, ikke en rød advarsel — du har ikke gjort noe
+   galt, du skal bare huske noe. */
+.remind {
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.remind.visible { display: flex; }
+
+.remind-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Trykket betyr «ja, den har jeg» — derfor ser den ut som noe å hake av,
+   ikke som en knapp som skal utføre noe. */
+.remind-chip {
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 15px;
+}
+
 /* Innliming av en hel ingrediensliste. Ligger i flyten, ikke som et panel
    oppå lista: her skal du lese før du bekrefter, ikke treffe et mål. */
 .paste-box {
