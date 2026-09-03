@@ -2,7 +2,7 @@ import { el, replaceChildren } from '../dom.ts';
 import { suggestMeals } from '../lib/suggest.ts';
 import { normalizeName } from '../lib/normalize.ts';
 import { formatQuantities } from '../lib/units.ts';
-import type { Meal, MealIngredient, ShoppingItem } from '../lib/types.ts';
+import type { Category, Meal, MealIngredient, ShoppingItem } from '../lib/types.ts';
 
 /**
  * «Hva kan vi lage?» — du skriver det du ser i kjøleskapet, appen svarer.
@@ -17,6 +17,17 @@ export interface CookActions {
   openMeal: (meal: Meal) => void;
   addMissing: (meal: Meal, missing: readonly MealIngredient[]) => void;
 }
+
+/**
+ * Bare matkategoriene i knappene. «annet» er søppelbøtta der avisa,
+ * oppvasksåpa og batteriene havner, og en snarveisliste full av dem er ingen
+ * snarvei.
+ *
+ * Prisen er at noen ekte ingredienser også ligger i «annet» — laurbærblad,
+ * for eksempel. Det er en snarvei, ikke den eneste veien inn: du kan skrive
+ * hva som helst i feltet, og søket leter i alt.
+ */
+const FOOD = new Set<Category>(['grønt', 'kjøtt', 'fisk', 'meieri', 'tørrvarer', 'frys', 'bakeri']);
 
 export function createCookView(
   meals: readonly Meal[],
@@ -77,6 +88,7 @@ export function createCookView(
     // bommet på melk og egg, som er nettopp det man har hjemme.
     const taken = new Set(have.map((name) => normalizeName(name)));
     const recent = [...bought]
+      .filter((item) => FOOD.has(item.category))
       .sort((a, b) => b.last_used_at.localeCompare(a.last_used_at))
       .filter((item) => !taken.has(item.normalized_name))
       .slice(0, 12);

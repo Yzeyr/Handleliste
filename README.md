@@ -436,6 +436,12 @@ arkiverte og avhukede som fortsatt står på lista. Egne varer blir jo stående
 etter en handletur, og uten dem ville forslagene systematisk bommet på melk og
 egg, som er nettopp det man har hjemme.
 
+**Bare matkategoriene er med i forslagene.** `annet` er søppelbøtta der avisa,
+oppvasksåpa og batteriene havner, og en snarveisliste full av dem er ingen
+snarvei. Prisen er at noen ekte ingredienser også ligger der — laurbærblad, for
+eksempel — men knappene er en snarvei, ikke den eneste veien inn: feltet tar
+imot hva som helst, og søket leter i alt.
+
 Rangeringen er antall treff først, så færrest mangler: en rett som bruker alle
 tre tingene dine slår en som bruker to, og blant like slår den du er nærmest å
 kunne lage i kveld. Salt, pepper, vann og olje telles ikke som noe du mangler —
