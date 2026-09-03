@@ -7,6 +7,8 @@
  * + 1 boks = 3 boks", men aldri boks + dl.
  */
 
+import type { Quantity } from './types.ts';
+
 export type Dimension = 'vekt' | 'volum' | 'antall';
 
 interface UnitDef {
@@ -122,6 +124,32 @@ export function displayUnit(baseAmount: number, dimension: Dimension, keepUnit: 
     if (fromBase(baseAmount, unit) >= 1) chosen = unit;
   }
   return chosen;
+}
+
+/**
+ * Ganger opp eller ned en mengde, og runder slik varen faktisk kjøpes.
+ *
+ * Tellbare ting rundes **opp til hele**: en halv løk er ikke noe man kjøper,
+ * og trenger oppskriften halvannen, må du ha to. Vekt og volum rundes til noe
+ * som er lesbart ved kjøttdisken — 400 g, ikke 399,84 g.
+ *
+ * Faktoren 1 slipper igjennom urørt. Da skal ingenting endre seg, heller ikke
+ * en mengde som allerede sto med desimaler.
+ */
+export function scaleQuantity(quantity: Quantity, factor: number): Quantity {
+  if (factor === 1 || !Number.isFinite(factor) || factor <= 0) return quantity;
+
+  const scaled = quantity.amount * factor;
+  const def = unitDefinition(quantity.unit);
+
+  if (def === null || def.dimension === 'antall') {
+    return { ...quantity, amount: Math.max(1, Math.ceil(scaled)) };
+  }
+  // Under 10 av basisenheten er det snakk om skjeer og desiliter, der én
+  // desimal er poenget. Over det er hele enheter presist nok.
+  const base = scaled * def.toBase;
+  const rounded = base < 10 ? Math.round(scaled * 10) / 10 : Math.round(scaled * 100) / 100;
+  return { ...quantity, amount: rounded === 0 ? quantity.amount : rounded };
 }
 
 /** Maks 2 desimaler, norsk desimalkomma, ingen etterslepende nuller. */

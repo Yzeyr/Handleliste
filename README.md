@@ -22,8 +22,8 @@ For ekte, delt liste:
    Har du kjørt en eldre `setup.sql` fra før, kjør migreringene i stedet, i
    nummerrekkefølge: `03_history.sql`, `04_notifications.sql`,
    `05_edit_undo_aliases.sql`, `06_manual.sql`, `07_varsler.sql`,
-   `08_uke_og_kjopslogg.sql`. De legger bare til det som er nytt, og er trygge
-   å kjøre flere ganger.
+   `08_uke_og_kjopslogg.sql`, `09_porsjoner_og_notat.sql`. De legger bare til
+   det som er nytt, og er trygge å kjøre flere ganger.
 3. `cp .env.example .env` og fyll inn URL + anon key fra Project Settings → API.
 4. `npm run dev`
 
@@ -361,6 +361,35 @@ Lagres i `localStorage` på den ene telefonen, ikke i den delte basen: om *du*
 har nettet med er ikke noe samboeren skal se haket av. Innholdet redigeres
 under tannhjulet; «Handlenett» er der fra start.
 
+## Hvor mange er dere?
+
+Oppskriftene er skrevet for et antall porsjoner. Sier du under tannhjulet hvor
+mange dere er, regnes mengdene om når en middag legges i lista — ellers står
+noen ved kjøttdisken og halverer 800 g i hodet hver gang.
+
+**Tellbare ting rundes opp til hele.** En halv løk kjøper man ikke, og trenger
+oppskriften halvannen, må du ha to. Vekt og volum rundes til noe som er lesbart
+ved disken: 400 g, ikke 399,84.
+
+**Skaleringen skjer før sammenslåingen.** To middager som hver bruker melk blir
+først regnet om, så slått sammen — ikke omvendt, som ville gitt avrundingsfeil
+på hver enkelt før summen. Dekket av test.
+
+Innstillingen ligger i `app_settings` i databasen, ikke på telefonen: er dere
+to, skal begge legge inn samme mengde. Lå den lokalt, ville lista blitt
+forskjellig alt etter hvem som trykket «Legg ingrediensene i lista». Tomt felt
+lar oppskriften stå som den er skrevet.
+
+## Notat på en vare
+
+«Ost» på en delt liste er tjue oster i butikken. Notatfeltet i ⋯-skjemaet er
+der den som skriver kan si hvilken — «Norvegia, den store» — og det vises der
+den andre står: på raden, og i handlemodus under navnet.
+
+Dette er den vanligste kilden til feilkjøp når to personer handler for
+hverandre, og feltet lå i skjemaet fra første dag uten at noe kunne fylle det
+ut.
+
 ## Handlemodus
 
 «🛒 Start handling» øverst på lista tar over hele skjermen. Faner, skjema,
@@ -372,6 +401,13 @@ Avhukede varer samles i én bolk nederst, gjennomstreket. Det som står igjen å
 handle krymper mens du går; det du har tatt er fortsatt synlig, men ute av
 veien. (Motsatt av det som sto her før — jeg mente butikkrekkefølgen var mer
 verdt enn å rydde unna, og det viste seg å være feil i faktisk bruk.)
+
+Nederst, etter lista, står et skrivefelt. Butikken er nettopp der du husker at
+dere er tom for oppvasksåpe, og uten det feltet måtte du ut av modusen, legge
+den inn, og starte på nytt — stikk i strid med regelen om at alt du gjør
+stående i butikken skal skje uten å bytte skjerm. Ett felt, ingen mengde og
+ingen kategori: den som står i en kø skriver «oppvasksåpe», ikke «1 stk
+oppvasksåpe · husholdning».
 
 Er alt haket av, tilbyr den «Rydd bort og avslutt», som arkiverer varene
 (altså rett i vareregisteret) og går ut av modusen.

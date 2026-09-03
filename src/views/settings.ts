@@ -21,6 +21,8 @@ export interface SettingsActions {
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;
   enablePush: () => void;
+  servings: number | null;
+  setServings: (servings: number | null) => void;
   disablePush: () => void;
   testPush: () => void;
   otherReceivers: string[];
@@ -70,7 +72,48 @@ export function createSettingsView(actions: SettingsActions): HTMLElement {
     on: { change: () => setDeviceName(nameInput.value) },
   });
 
+  const servingsInput = el('input', {
+    attrs: {
+      type: 'text',
+      inputmode: 'numeric',
+      placeholder: 'Som oppskriften er skrevet',
+      'aria-label': 'Hvor mange dere er',
+      autocomplete: 'off',
+      value: actions.servings === null ? '' : String(actions.servings),
+    },
+  });
+
   return el('section', { class: 'view' }, [
+    el('h2', { class: 'view-title', text: 'Hvor mange er dere?' }),
+    el('p', {
+      class: 'fine-print',
+      text:
+        'Oppskriftene er skrevet for et antall porsjoner. Sier du hvor mange dere ' +
+        'er, regnes mengdene om når en middag legges i lista — så ingen står ved ' +
+        'kjøttdisken og halverer 800 g i hodet. Tomt felt lar oppskriften stå som den er.',
+    }),
+    el('div', { class: 'row' }, [
+      servingsInput,
+      el('button', {
+        class: 'primary',
+        text: 'Lagre',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            const raw = servingsInput.value.trim();
+            const value = Number(raw);
+            actions.setServings(
+              raw === '' || !Number.isFinite(value) || value <= 0 ? null : Math.round(value),
+            );
+          },
+        },
+      }),
+    ]),
+    el('p', {
+      class: 'fine-print',
+      text: 'Gjelder begge telefonene — dere skal handle etter samme mengder.',
+    }),
+    el('hr'),
     el('h2', { class: 'view-title', text: 'Navnet ditt' }),
     el('p', {
       class: 'fine-print',

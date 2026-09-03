@@ -426,14 +426,14 @@ function isRow(value: unknown): value is Partial<ShoppingItem> {
 
 export async function updateItem(
   item: ShoppingItem,
-  patch: { name: string; category: Category; quantities: Quantity[] },
+  patch: { name: string; category: Category; quantities: Quantity[]; note?: string | null },
 ): Promise<void> {
   return updateItemById(item.id, patch);
 }
 
 export async function updateItemById(
   id: string,
-  patch: { name: string; category: Category; quantities: Quantity[] },
+  patch: { name: string; category: Category; quantities: Quantity[]; note?: string | null },
 ): Promise<void> {
   const name = patch.name.trim();
   if (name === '') throw new Error('Varen må ha et navn');
@@ -445,6 +445,7 @@ export async function updateItemById(
       normalized_name: normalizeName(name),
       category: patch.category,
       quantities: patch.quantities,
+      note: patch.note ?? null,
       updated_by: deviceName(),
     })
     .eq('id', id);
@@ -478,6 +479,7 @@ export async function restoreItems(items: readonly ShoppingItem[]): Promise<void
       use_count: item.use_count,
       manual: item.manual,
       source_meals: item.source_meals,
+      note: item.note,
       last_used_at: item.last_used_at,
       updated_by: item.updated_by,
     };
@@ -527,6 +529,37 @@ async function unlogUndonePurchases(items: readonly ShoppingItem[]): Promise<voi
   if (newest.size === 0) return;
 
   await sb().from('purchases').delete().in('id', [...newest.values()]);
+}
+
+// ---------------------------------------------------------------------------
+// Felles innstillinger
+// ---------------------------------------------------------------------------
+
+const SERVINGS_KEY = 'servings';
+
+/** Hvor mange dere er. null = ikke satt, og da skaleres ingenting. */
+export async function fetchServings(): Promise<number | null> {
+  const { data, error } = await sb()
+    .from('app_settings')
+    .select('value')
+    .eq('key', SERVINGS_KEY)
+    .maybeSingle();
+  // En manglende innstilling skal ikke stoppe oppstarten.
+  if (error !== null || data === null) return null;
+  const value = Number((data as { value: string }).value);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export async function saveServings(servings: number | null): Promise<void> {
+  if (servings === null) {
+    const { error } = await sb().from('app_settings').delete().eq('key', SERVINGS_KEY);
+    fail('Klarte ikke å lagre antall personer', error);
+    return;
+  }
+  const { error } = await sb()
+    .from('app_settings')
+    .upsert({ key: SERVINGS_KEY, value: String(servings), updated_at: new Date().toISOString() });
+  fail('Klarte ikke å lagre antall personer', error);
 }
 
 // ---------------------------------------------------------------------------

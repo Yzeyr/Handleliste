@@ -1,6 +1,6 @@
 import type { Category, Meal, Quantity, ShoppingItem } from './types.ts';
 import { normalizeName } from './normalize.ts';
-import { dimensionKey, displayUnit, normalizeUnit, toBase, unitDefinition } from './units.ts';
+import { dimensionKey, displayUnit, normalizeUnit, scaleQuantity, toBase, unitDefinition } from './units.ts';
 
 /**
  * Slår sammen mengder til så få linjer som mulig.
@@ -92,20 +92,32 @@ export function mergePending(items: readonly PendingItem[]): PendingItem[] {
   return [...byName.values()];
 }
 
-export function itemsFromMeals(meals: readonly Meal[]): PendingItem[] {
+/**
+ * `servings` er hvor mange dere er. Er den satt, regnes hver oppskrift om fra
+ * det den er skrevet for til det dere trenger — så ingen står ved kjøttdisken
+ * og halverer 800 g i hodet. Uten den står oppskriften som den er skrevet.
+ */
+export function itemsFromMeals(meals: readonly Meal[], servings?: number | null): PendingItem[] {
   return mergePending(
-    meals.flatMap((meal) =>
-      meal.ingredients.map((ingredient) => ({
+    meals.flatMap((meal) => {
+      const factor =
+        servings == null || meal.servings <= 0 ? 1 : servings / meal.servings;
+      return meal.ingredients.map((ingredient) => ({
         normalizedName: normalizeName(ingredient.name),
         name: ingredient.name,
         quantities:
           ingredient.amount === null
             ? []
-            : [{ amount: ingredient.amount, unit: normalizeUnit(ingredient.unit) }],
+            : [
+                scaleQuantity(
+                  { amount: ingredient.amount, unit: normalizeUnit(ingredient.unit) },
+                  factor,
+                ),
+              ],
         category: ingredient.category,
         sourceMeals: [meal.name],
-      })),
-    ),
+      }));
+    }),
   );
 }
 

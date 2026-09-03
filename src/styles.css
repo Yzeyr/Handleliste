@@ -908,7 +908,6 @@ textarea {
   color: var(--accent);
 }
 
-.shopping-name { flex: 1; min-width: 0; font-size: 19px; font-weight: 500; }
 
 .shopping-qty {
   flex: none;
@@ -921,6 +920,20 @@ textarea {
 .shopping-item.checked .big-tick { border-color: var(--accent); }
 .shopping-item.checked .shopping-name,
 .shopping-item.checked .shopping-qty { text-decoration: line-through; }
+
+/* Notatet er det som avgjør hvilken av tjue oster du tar med deg. Under
+   navnet, ikke ved siden av: navnet skal fortsatt leses først. */
+.item-note { font-size: 13px; color: var(--accent); }
+.item.checked .item-note { color: var(--muted); }
+
+.shopping-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shopping-name { font-size: 19px; font-weight: 500; }
+.shopping-note { font-size: 15px; color: var(--accent); }
+.shopping-item.checked .shopping-note { color: var(--muted); }
+
+/* Skrivefeltet i handlemodus. Nederst, etter lista: det du gjør hele tiden er
+   å hake av, og det du gjør av og til skal ikke ligge i veien for det. */
+.shopping-add { display: flex; gap: 8px; }
 
 .shopping-footer { display: flex; flex-direction: column; gap: 8px; }
 .all-done { margin: 0; font-weight: 600; }

@@ -141,7 +141,7 @@ export function reviveLocal(
 export function editLocal(
   state: LocalState,
   id: string,
-  patch: { name: string; category: Category; quantities: Quantity[] },
+  patch: { name: string; category: Category; quantities: Quantity[]; note?: string | null },
   author: string | null,
 ): void {
   const item = state.items.find((row) => row.id === id);
@@ -155,6 +155,7 @@ export function editLocal(
   item.normalized_name = key;
   item.category = patch.category;
   item.quantities = patch.quantities;
+  if (patch.note !== undefined) item.note = patch.note;
   item.updated_by = author;
   item.updated_at = now();
   item.version += 1;

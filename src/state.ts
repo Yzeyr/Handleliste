@@ -10,6 +10,8 @@ export interface AppState {
   unseen: Set<string>;
   aliases: { alias: string; canonical: string }[];
   pushTargets: { device_id: string; label: string | null; topic: string }[];
+  /** Hvor mange dere er. null = ikke satt, og da skaleres ingen oppskrift. */
+  servings: number | null;
 }
 
 export interface Actions {
@@ -28,7 +30,11 @@ export interface Actions {
   goToList: () => void;
   startShopping: () => void;
   showCards: () => void;
-  editItem: (item: ShoppingItem, patch: { name: string; category: Category; quantities: Quantity[] }) => void;
+  editItem: (
+    item: ShoppingItem,
+    patch: { name: string; category: Category; quantities: Quantity[]; note: string | null },
+  ) => void;
+  setServings: (servings: number | null) => void;
   addAlias: (alias: string, canonical: string) => void;
   removeAlias: (alias: string) => void;
   addMealToList: (meal: Meal) => void;

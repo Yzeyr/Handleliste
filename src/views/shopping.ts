@@ -17,6 +17,50 @@ export function createShoppingView(actions: Actions, onExit: () => void): View<A
   const body = el('div', { class: 'shopping-body' });
   const footer = el('div', { class: 'shopping-footer' });
 
+  /**
+   * Butikken er nettopp der du husker at dere er tom for oppvasksåpe. Uten
+   * dette feltet måtte du ut av handlemodus, legge den inn, og starte på
+   * nytt — stikk i strid med regelen om at alt du gjør stående i butikken
+   * skal skje uten å bytte skjerm.
+   *
+   * Ett felt, ingen mengde og ingen kategori: den som står i en kø skriver
+   * «oppvasksåpe», ikke «1 stk oppvasksåpe · husholdning».
+   */
+  const quickInput = el('input', {
+    class: 'grow',
+    attrs: {
+      type: 'text',
+      placeholder: 'Husket du noe? Legg det til her',
+      'aria-label': 'Legg til vare',
+      autocomplete: 'off',
+      enterkeyhint: 'done',
+    },
+  });
+
+  function quickAdd(): void {
+    const text = quickInput.value.trim();
+    if (text === '') return;
+    actions.addPastedLines([text]);
+    quickInput.value = '';
+  }
+
+  const quickForm = el(
+    'form',
+    {
+      class: 'shopping-add',
+      on: {
+        submit: (event) => {
+          event.preventDefault();
+          quickAdd();
+        },
+      },
+    },
+    [
+      quickInput,
+      el('button', { class: 'primary', text: 'Legg til', attrs: { type: 'submit' } }),
+    ],
+  );
+
   const element = el('section', { class: 'shopping' }, [
     el('div', { class: 'shopping-top' }, [
       el('div', { class: 'progress' }, [
@@ -37,6 +81,7 @@ export function createShoppingView(actions: Actions, onExit: () => void): View<A
       }),
     ]),
     body,
+    quickForm,
     footer,
   ]);
 
@@ -113,7 +158,13 @@ function renderRow(item: ShoppingItem, actions: Actions): HTMLElement {
       },
       [
         el('span', { class: 'big-tick', text: item.checked ? '✓' : '' }),
-        el('span', { class: 'shopping-name', text: item.name }),
+        el('span', { class: 'shopping-main' }, [
+          el('span', { class: 'shopping-name', text: item.name }),
+          // Notatet står under navnet, ikke ved siden av: det er det som
+          // avgjør hvilken av tjue oster du tar med deg.
+          item.note !== null && item.note !== '' &&
+            el('span', { class: 'shopping-note', text: item.note }),
+        ]),
         quantity !== '' && el('span', { class: 'shopping-qty', text: quantity }),
       ],
     ),

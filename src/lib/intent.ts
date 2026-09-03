@@ -20,7 +20,11 @@ export type Intent =
   | { kind: 'setChecked'; id: string; checked: boolean; quiet?: boolean }
   | { kind: 'archive'; ids: string[] }
   | { kind: 'revive'; id: string; quantities: Quantity[] }
-  | { kind: 'edit'; id: string; patch: { name: string; category: Category; quantities: Quantity[] } }
+  | {
+      kind: 'edit';
+      id: string;
+      patch: { name: string; category: Category; quantities: Quantity[]; note: string | null };
+    }
   | { kind: 'forget'; id: string }
   | { kind: 'restore'; items: ShoppingItem[] }
   | { kind: 'weekAdd'; mealId: string; id: string; weekday: number | null }

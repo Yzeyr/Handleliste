@@ -17,7 +17,7 @@ import type { Actions, AppState } from '../state.ts';
 export function createListView(actions: Actions): View<AppState> {
   // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.
   let known: ShoppingItem[] = [];
-  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [], pushTargets: [] };
+  let current: AppState = { items: [], meals: [], week: [], register: [], unseen: new Set(), aliases: [], pushTargets: [], servings: null };
 
   // Hvilke rader som står åpne for redigering. Holdes utenfor tegningen, så
   // en oppdatering fra den andre telefonen ikke lukker et skjema du står i.
@@ -497,6 +497,8 @@ function renderItem(
                   attrs: { title: 'Endret siden sist', 'aria-label': 'Endret siden sist' },
                 }),
             ]),
+            item.note !== null && item.note !== '' &&
+              el('span', { class: 'item-note', text: item.note }),
             source !== '' && el('span', { class: 'item-source', text: source }),
           ]),
         ],
@@ -628,6 +630,18 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
     { class: 'category', attrs: { 'aria-label': 'Kategori' } },
     CATEGORIES.map((c) => el('option', { text: c, attrs: { value: c, selected: c === item.category } })),
   );
+  // «Ost» på en delt liste er tjue oster i butikken. Notatet er stedet den
+  // som skriver kan si hvilken, og det vises der den andre står — på raden og
+  // i handlemodus.
+  const noteInput = el('input', {
+    attrs: {
+      type: 'text',
+      placeholder: 'Notat: «Norvegia, den store»',
+      'aria-label': 'Notat',
+      autocomplete: 'off',
+      value: item.note ?? '',
+    },
+  });
 
   function quantities(): Quantity[] {
     const amount = parseAmount(amountInput.value);
@@ -640,6 +654,7 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
   return el('div', { class: 'item-editor' }, [
     nameInput,
     el('div', { class: 'row' }, [amountInput, unitInput, categorySelect]),
+    noteInput,
     el('div', { class: 'row' }, [
       el('button', {
         class: 'primary grow',
@@ -651,6 +666,7 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
               name: nameInput.value,
               category: isCategory(categorySelect.value) ? categorySelect.value : item.category,
               quantities: quantities(),
+              note: noteInput.value.trim() === '' ? null : noteInput.value.trim(),
             });
             // Lukkes med en gang. Går lagringen galt, sier varselet hva som
             // skjedde, og raden kan åpnes igjen — bedre enn et skjema som

@@ -115,6 +115,19 @@ create trigger shopping_list_items_touch
   for each row execute function public.bump_version();
 
 -- ---------------------------------------------------------------------------
+-- app_settings — felles innstillinger for husholdningen
+--
+-- Én rad per innstilling. Foreløpig bare «hvor mange er vi», som avgjør hvor
+-- mye av en oppskrift som havner på lista. Delt, ikke lokalt på hver telefon:
+-- er dere to, skal begge legge inn samme mengde.
+-- ---------------------------------------------------------------------------
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      text not null,
+  updated_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- purchases — én rad hver gang en avhuket vare ryddes bort
 --
 -- Altså: hver gang noe faktisk ble kjøpt. Ingenting i appen leser den ennå.
@@ -206,6 +219,7 @@ create table if not exists public.push_targets (
 alter table public.shopping_list_items replica identity full;
 alter publication supabase_realtime add table public.shopping_list_items;
 alter publication supabase_realtime add table public.week_plan_items;
+alter publication supabase_realtime add table public.app_settings;
 
 -- ---------------------------------------------------------------------------
 -- RLS
@@ -220,6 +234,7 @@ alter table public.meals               enable row level security;
 alter table public.ingredient_aliases  enable row level security;
 alter table public.push_targets        enable row level security;
 alter table public.purchases           enable row level security;
+alter table public.app_settings        enable row level security;
 alter table public.meal_ingredients    enable row level security;
 alter table public.shopping_list_items enable row level security;
 alter table public.week_plan_items     enable row level security;
@@ -238,6 +253,10 @@ create policy "husholdning full tilgang" on public.shopping_list_items
 
 drop policy if exists "husholdning full tilgang" on public.ingredient_aliases;
 create policy "husholdning full tilgang" on public.ingredient_aliases
+  for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "husholdning full tilgang" on public.app_settings;
+create policy "husholdning full tilgang" on public.app_settings
   for all to anon, authenticated using (true) with check (true);
 
 drop policy if exists "husholdning full tilgang" on public.purchases;

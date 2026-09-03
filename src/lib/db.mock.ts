@@ -503,7 +503,7 @@ export function subscribeToChanges(onChange: (event: ChangeEvent | null) => void
 
 export async function updateItem(
   item: ShoppingItem,
-  patch: { name: string; category: Category; quantities: Quantity[] },
+  patch: { name: string; category: Category; quantities: Quantity[]; note?: string | null },
 ): Promise<void> {
   krevNett();
   const name = patch.name.trim();
@@ -516,6 +516,7 @@ export async function updateItem(
   if (found !== undefined) {
     found.name = name;
     found.normalized_name = key;
+    if (patch.note !== undefined) found.note = patch.note;
     found.category = patch.category;
     found.quantities = patch.quantities;
     found.updated_by = deviceName();
@@ -630,9 +631,22 @@ export async function reviveItem(itemId: string, quantities: Quantity[]): Promis
   await addFromRegister(found, quantities);
 }
 
+let servingsSetting: number | null = null;
+
+export async function fetchServings(): Promise<number | null> {
+  krevNett();
+  return servingsSetting;
+}
+
+export async function saveServings(servings: number | null): Promise<void> {
+  krevNett();
+  servingsSetting = servings;
+  notify();
+}
+
 export async function updateItemById(
   itemId: string,
-  patch: { name: string; category: Category; quantities: Quantity[] },
+  patch: { name: string; category: Category; quantities: Quantity[]; note?: string | null },
 ): Promise<void> {
   krevNett();
   const found = items.find((row) => row.id === itemId);

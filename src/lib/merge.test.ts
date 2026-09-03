@@ -37,6 +37,10 @@ function meal(name: string, ingredients: MealIngredient[]): Meal {
   };
 }
 
+/** «Navn mengde enhet» per linje, i den rekkefølgen de kom. */
+const kort = (items: { name: string; quantities: Quantity[] }[]): string[] =>
+  items.map((i) => `${i.name} ${i.quantities.map((q) => `${q.amount} ${q.unit}`).join(' + ')}`.trim());
+
 function listItem(
   name: string,
   quantities: Quantity[],
@@ -296,4 +300,34 @@ test('mengden vises igjen slik den ble skrevet', () => {
   assert.equal(formatAmount(parseAmount('1,5') ?? 0), '1,5');
   assert.equal(formatAmount(parseAmount('0,5') ?? 0), '0,5');
   assert.equal(formatAmount(parseAmount('2') ?? 0), '2');
+});
+
+test('mengder skaleres til hvor mange dere er', () => {
+  const taco = meal('Taco', [ing('Kjøttdeig', 800, 'g'), ing('Lompe', 12, 'stk')]);
+  assert.deepEqual(kort(itemsFromMeals([taco], 2)), ['Kjøttdeig 400 g', 'Lompe 6 stk']);
+  assert.deepEqual(kort(itemsFromMeals([taco], 6)), ['Kjøttdeig 1200 g', 'Lompe 18 stk']);
+});
+
+test('uten et antall står oppskriften som den er skrevet', () => {
+  const taco = meal('Taco', [ing('Kjøttdeig', 800, 'g')]);
+  assert.deepEqual(kort(itemsFromMeals([taco])), ['Kjøttdeig 800 g']);
+  assert.deepEqual(kort(itemsFromMeals([taco], null)), ['Kjøttdeig 800 g']);
+  assert.deepEqual(kort(itemsFromMeals([taco], 4)), ['Kjøttdeig 800 g']);
+});
+
+test('tellbare ting rundes opp — en halv løk kjøper man ikke', () => {
+  const rett = meal('Rett', [ing('Løk', 3, 'stk'), ing('Hvitløk', 3, 'fedd')]);
+  assert.deepEqual(kort(itemsFromMeals([rett], 2)), ['Løk 2 stk', 'Hvitløk 2 fedd']);
+});
+
+test('en oppskrift skalert til null gir likevel én av det tellbare', () => {
+  const rett = meal('Rett', [ing('Løk', 1, 'stk')]);
+  rett.servings = 12;
+  assert.deepEqual(kort(itemsFromMeals([rett], 1)), ['Løk 1 stk']);
+});
+
+test('skalering skjer før sammenslåing, så to middager gir én riktig sum', () => {
+  const a = meal('A', [ing('Helmelk', 4, 'dl')]);
+  const b = meal('B', [ing('Helmelk', 2, 'dl')]);
+  assert.deepEqual(kort(itemsFromMeals([a, b], 2)), ['Helmelk 3 dl']);
 });

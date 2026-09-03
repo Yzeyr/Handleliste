@@ -152,6 +152,7 @@ async function start(container: HTMLElement): Promise<void> {
     unseen: new Set(),
     aliases: [],
     pushTargets: [],
+    servings: null,
   };
   let tab: TabId = 'liste';
 
@@ -245,7 +246,7 @@ async function start(container: HTMLElement): Promise<void> {
         .filter((meal): meal is Meal => meal !== undefined);
       if (chosen.length === 0) return;
 
-      const pending = itemsFromMeals(chosen);
+      const pending = itemsFromMeals(chosen, state.servings);
       queue(() => ({
         kind: 'addPending',
         pending,
@@ -264,6 +265,13 @@ async function start(container: HTMLElement): Promise<void> {
       });
     },
     editItem: (item, patch) => queue(() => ({ kind: 'edit', id: item.id, patch })),
+    setServings: (servings: number | null) =>
+      run(async () => {
+        if (!store.isOnline()) throw new Error('Antall personer kan bare endres når du har nett');
+        await db.saveServings(servings);
+        state.servings = servings;
+        showSettings();
+      }),
     addAlias: (alias: string, canonical: string) =>
       run(async () => {
         if (!store.isOnline()) throw new Error('Synonymer kan bare endres når du har nett');
@@ -281,7 +289,7 @@ async function start(container: HTMLElement): Promise<void> {
     // Én middag rett i lista, uten å gå veien om ukemenyen. Ukemenyen er for
     // planlegging; dette er for «vi tar taco i kveld».
     addMealToList: (meal: Meal) => {
-      const pending = itemsFromMeals([meal]);
+      const pending = itemsFromMeals([meal], state.servings);
       queue(() => ({
         kind: 'addPending',
         pending,
@@ -397,6 +405,8 @@ async function start(container: HTMLElement): Promise<void> {
         aliases: state.aliases,
         addAlias: actions.addAlias,
         removeAlias: actions.removeAlias,
+        servings: state.servings,
+        setServings: actions.setServings,
         enablePush: () =>
           run(async () => {
             const topic = pushTopic() ?? freshTopic();
@@ -765,6 +775,11 @@ async function start(container: HTMLElement): Promise<void> {
     await store.refreshPushTargets();
   } catch {
     /* beholder de lagrede */
+  }
+  try {
+    state.servings = await db.fetchServings();
+  } catch {
+    /* uten den skaleres ingenting, som før */
   }
 
   try {
