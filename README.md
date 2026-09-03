@@ -417,6 +417,32 @@ deg ut av den, og appen ber om `wakeLock` mens den er på — en telefon som
 låser seg mellom hver vare er den raskeste måten å gjøre en handleliste
 ubrukelig på. Støttes ikke overalt, og da oppfører den seg som før.
 
+## Hva kan vi lage?
+
+Under Middager: skriv det du ser i kjøleskapet, så rangeres middagene etter
+hvor mye av det de bruker. Hvert treff sier hva som mangler, og en knapp legger
+**bare det som mangler** i lista — gjennom samme sammenslåing og
+porsjonsskalering som en hel middag, så en halv oppskrift ikke oppfører seg
+annerledes enn en hel.
+
+**Dette er ikke en beholdning, med vilje.** Et lager over hva dere har hjemme
+må føres hver gang det går tomt for egg. Det blir feil i løpet av en uke, og en
+beholdning man ikke stoler på er verre enn ingen: du sjekker i kjøleskapet
+likevel, og har i tillegg brukt tid på å føre den. Her ser du i kjøleskapet én
+gang og skriver det du ser.
+
+Forslagene over feltet er varer dere har kjøpt nylig, nyest først — både
+arkiverte og avhukede som fortsatt står på lista. Egne varer blir jo stående
+etter en handletur, og uten dem ville forslagene systematisk bommet på melk og
+egg, som er nettopp det man har hjemme.
+
+Rangeringen er antall treff først, så færrest mangler: en rett som bruker alle
+tre tingene dine slår en som bruker to, og blant like slår den du er nærmest å
+kunne lage i kveld. Salt, pepper, vann og olje telles ikke som noe du mangler —
+det er ikke det som avgjør om middagen lar seg lage. Sammenligningen går
+gjennom samme synonymtabell som resten av appen, så «H-melk» i kjøleskapet
+treffer «helmelk» i oppskriften. Dekket av test.
+
 ## Lime inn en hel liste i skrivefeltet
 
 Limer du flere linjer inn i «Legg til vare», leses de som en ingrediensliste:

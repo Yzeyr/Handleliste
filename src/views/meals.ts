@@ -23,6 +23,14 @@ export function createMealsView(actions: Actions): View<AppState> {
     el('div', { class: 'row' }, [search]),
     // Egen rad og hele bredden: en knapp som het "+ Ny" ved siden av søkefeltet
     // sa ingenting om hva som ble ny, og brakk over to linjer på telefon.
+    // Over «lag egen»: spørsmålet klokka 16 er hva man skal lage av det som
+    // står i kjøleskapet, ikke om man skal skrive en ny oppskrift.
+    el('button', {
+      class: 'outline wide',
+      text: '🥘 Hva kan vi lage?',
+      attrs: { type: 'button' },
+      on: { click: () => actions.showCook() },
+    }),
     el('button', {
       class: 'outline wide',
       text: '+ Lag egen middag',

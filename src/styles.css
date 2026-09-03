@@ -107,6 +107,54 @@ body {
 
 .card-file { padding: 10px; }
 
+/* --- Hva kan vi lage? ---------------------------------------------------- */
+
+.cook-chips, .cook-nearby { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cook-nearby .fine-print { width: 100%; margin: 0; }
+
+.cook-chip {
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #08240f;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* Forslagene ser ut som noe å velge, det valgte som noe som er valgt. */
+.ghost-chip { background: transparent; border-color: var(--line); color: var(--muted); font-weight: 500; }
+
+.cook-results { display: flex; flex-direction: column; gap: 12px; }
+
+.cook-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.cook-hit-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  min-height: 0;
+}
+
+.cook-hit-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cook-have { font-size: 13px; color: var(--accent); }
+.cook-missing { margin: 0; font-size: 14px; color: var(--muted); }
+.cook-ready { margin: 0; font-size: 14px; font-weight: 600; color: var(--accent); }
+
 /* «Husk før du går inn». Skal legge seg merke til uten å rope: en tydelig
    ramme og appens grønnfarge, ikke en rød advarsel — du har ikke gjort noe
    galt, du skal bare huske noe. */

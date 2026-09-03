@@ -20,6 +20,7 @@ import type { Intent } from './lib/intent.ts';
 import { clearLabel, planClear } from './lib/clearing.ts';
 import { createSetupView } from './views/setup.ts';
 import { createCardsView } from './views/cards.ts';
+import { createCookView } from './views/cook.ts';
 import {
   applyShareLink,
   clearConfig,
@@ -323,6 +324,7 @@ async function start(container: HTMLElement): Promise<void> {
     goToList: () => setTab('liste'),
     startShopping: () => setShopping(true),
     showCards: () => showCards(),
+    showCook: () => showCook(),
   };
 
   const shoppingView = createShoppingView(actions, () => setShopping(false));
@@ -387,6 +389,41 @@ async function start(container: HTMLElement): Promise<void> {
       createCardsView(() => {
         if (wasShopping) setShopping(true);
         else setTab(tab);
+      }),
+    ]);
+    content.scrollTo({ top: 0 });
+  }
+
+  /**
+   * «Hva kan vi lage?» — utenfor fanene, som kortene. Den svarer på et
+   * spørsmål man stiller av og til, ikke noe man blar i.
+   */
+  function showCook(): void {
+    for (const button of tabBar.querySelectorAll('.tab')) button.classList.remove('active');
+    replaceChildren(content, [
+      createCookView(state.meals, [...state.items.filter((item) => item.checked), ...state.register], {
+        close: () => setTab('middager'),
+        openMeal: (meal) => {
+          setTab('middager');
+          showStatus(`${meal.name} — åpne den i lista under`);
+        },
+        addMissing: (meal, missing) => {
+          // Bare det som mangler, men gjennom nøyaktig samme sammenslåing og
+          // porsjonsskalering som en hel middag. Ellers ville en halv oppskrift
+          // oppført seg annerledes enn en hel.
+          const pending = itemsFromMeals(
+            [{ ...meal, ingredients: [...missing] }],
+            state.servings,
+          );
+          queue(() => ({
+            kind: 'addPending',
+            pending,
+            newIds: pending.map(() => crypto.randomUUID()),
+            mealIds: [],
+          }));
+          setTab('liste');
+          showStatus(`${pending.length} varer lagt til fra ${meal.name}`);
+        },
       }),
     ]);
     content.scrollTo({ top: 0 });

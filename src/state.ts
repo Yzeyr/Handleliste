@@ -30,6 +30,7 @@ export interface Actions {
   goToList: () => void;
   startShopping: () => void;
   showCards: () => void;
+  showCook: () => void;
   editItem: (
     item: ShoppingItem,
     patch: { name: string; category: Category; quantities: Quantity[]; note: string | null },
