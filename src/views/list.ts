@@ -1,25 +1,18 @@
 import { el, replaceChildren, type View } from '../dom.ts';
-import { CATEGORIES, isCategory, type Category, type Quantity, type ShoppingItem } from '../lib/types.ts';
+import {
+  CATEGORIES,
+  GROUP_ORDER,
+  isCategory,
+  type Category,
+  type Quantity,
+  type ShoppingItem,
+} from '../lib/types.ts';
 import { parseIngredientLine } from '../lib/parseRecipe.ts';
 import { categoryForName } from '../lib/facts.ts';
 import { normalizeName } from '../lib/normalize.ts';
 import { acknowledge, loadAcknowledged, loadReminders, pendingReminders, today } from '../lib/reminders.ts';
-import { formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
+import { COMMON_UNITS, formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
-
-/** Rekkefølgen man går gjennom butikken i, ikke alfabetisk. */
-const GROUP_ORDER: Category[] = [
-  'grønt',
-  'kjøtt',
-  'fisk',
-  'meieri',
-  'bakeri',
-  'frys',
-  'tørrvarer',
-  'annet',
-];
-
-const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
 
 export function createListView(actions: Actions): View<AppState> {
   // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.

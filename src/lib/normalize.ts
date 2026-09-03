@@ -51,8 +51,10 @@ const SYNONYMER: Record<string, string> = {
   revetost: 'revet ost',
   'norvegia revet': 'revet ost',
 
-  // tomater på boks
-  tomater: 'hermetiske tomater',
+  // tomater på boks. Merk at «tomater» IKKE står her: ferske tomater til
+  // salaten er en annen vare enn en boks hakkede, og å slå dem sammen ga én
+  // linje som var feil uansett hvordan man leste den. Flertallsformen hører
+  // hjemme hos den ferske varen, sammen med loker/gulrotter under.
   'hakkede tomater': 'hermetiske tomater',
   'knuste tomater': 'hermetiske tomater',
   'hermetisk tomat': 'hermetiske tomater',
@@ -67,6 +69,7 @@ const SYNONYMER: Record<string, string> = {
 
   // grønt
   loker: 'lok',
+  tomater: 'tomat',
   gulrotter: 'gulrot',
   gulerotter: 'gulrot',
   poteter: 'potet',

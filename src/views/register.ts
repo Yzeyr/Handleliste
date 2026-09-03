@@ -1,10 +1,8 @@
 import { el, replaceChildren, type View } from '../dom.ts';
 import type { Meal, Quantity, ShoppingItem } from '../lib/types.ts';
 import { describeLastBought, mealsUsing } from '../lib/facts.ts';
-import { formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
+import { COMMON_UNITS, formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
-
-const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
 
 /**
  * Vareregisteret: alt som har vært på lista før, mest brukte først. På en

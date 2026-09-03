@@ -67,6 +67,9 @@ const UNIT_ALIASES: Record<string, string> = {
   bunter: 'bunt',
 };
 
+/** Forslagene i enhetsfeltet. Samme liste overalt den vises. */
+export const COMMON_UNITS = ['stk', 'g', 'kg', 'dl', 'l', 'ml', 'ss', 'ts', 'pk', 'boks', 'pose', 'fedd'];
+
 /** Rydder opp i enhetsskrivemåte. Ukjente enheter beholdes som de er. */
 export function normalizeUnit(raw: string | null | undefined): string {
   const s = (raw ?? '').toLowerCase().trim().replace(/\.$/, '');

@@ -804,11 +804,18 @@ async function start(container: HTMLElement): Promise<void> {
   }
 
   // Realtime: den andre telefonen sin endring lander her.
+  // Én handletur er tretti avhukinger, og hver av dem er en hendelse her.
+  // Uten denne pausen ble det tretti fulle henting-runder per telefon, i en
+  // butikk med dårlig dekning. Endringene kommer uansett samlet i den siste.
+  let reloadTimer: number | undefined;
   db.subscribeToChanges((event: ChangeEvent | null) => {
     if (event !== null) {
       const message = describeChange(event, deviceName());
       if (message !== null) announce(message);
     }
-    void reload().catch(() => showStatus('Mistet kontakt med databasen', true));
+    window.clearTimeout(reloadTimer);
+    reloadTimer = window.setTimeout(() => {
+      void reload().catch(() => showStatus('Mistet kontakt med databasen', true));
+    }, 400);
   });
 }

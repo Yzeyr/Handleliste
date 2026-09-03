@@ -1,19 +1,7 @@
 import { el, replaceChildren, type View } from '../dom.ts';
-import type { Category, ShoppingItem } from '../lib/types.ts';
+import { GROUP_ORDER, type ShoppingItem } from '../lib/types.ts';
 import { formatQuantities } from '../lib/units.ts';
 import type { Actions, AppState } from '../state.ts';
-
-/** Rekkefølgen man går gjennom butikken i. Samme som på lista. */
-const GROUP_ORDER: Category[] = [
-  'grønt',
-  'kjøtt',
-  'fisk',
-  'meieri',
-  'bakeri',
-  'frys',
-  'tørrvarer',
-  'annet',
-];
 
 /**
  * Handlemodus: appen mens du står i butikken.

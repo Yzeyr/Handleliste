@@ -686,14 +686,18 @@ Innholdet er «Kari la til melk», så innsatsen er lav uansett.
 
 ## Sikkerhet — verdt å vite
 
-Appen har **ingen innlogging**. Den bruker Supabase sin anon-nøkkel, og den
-nøkkelen ligger i JS-bundelen som lastes ned til telefonen. RLS-policyene
-gir `anon` full lese- og skrivetilgang. I praksis: den som finner URL-en til
-appen kan lese og endre handlelista deres.
+Appen har **ingen innlogging**, og RLS-policyene gir `anon` full lese- og
+skrivetilgang. Den som har nøkkelen kan lese og endre handlelista deres.
 
-Delingslenka endrer ikke på dette: fragmentet sendes aldri til noen server,
-men nøkkelen ligger i meldingen dere sender lenka i, og den er uansett
-synlig i appens nettverkstrafikk.
+**Men det er ikke nok å finne URL-en til appen.** Bygget som ligger på GitHub
+Pages inneholder ingen nøkler — `import.meta.env` er tom der, og oppsettet
+kommer fra `localStorage` på hver telefon. Det er **delingslenka** som er
+nøkkelen. Kjører du derimot med en `.env`, bakes nøklene inn i bundelen, og da
+holder det å finne siden.
+
+Praktisk konsekvens: lenka er et passord. Har noen fått den én gang, har de
+tilgang til den blir byttet — og å bytte den krever nye nøkler i Supabase og
+en ny runde deling.
 
 For en handleliste for to er det en helt grei avveining, og det er derfor
 det er satt opp sånn. Men det er en reell åpning, ikke noe jeg har gjemt

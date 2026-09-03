@@ -5,7 +5,6 @@ import type { ChangeEvent } from './changes.ts';
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
-import { normalizeName as normalize } from './normalize.ts';
 import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 
 const LIST = 'shopping_list_items';
@@ -73,8 +72,25 @@ export async function fetchAllItemsForCache(): Promise<ShoppingItem[]> {
   return fetchAllItems();
 }
 
+/**
+ * Arkiverte rader slettes aldri, så uten en grense vokser denne lesingen for
+ * alltid — og den kjøres ved hver oppfriskning, i en butikk med dårlig
+ * dekning. Nyest brukte først, så det som faller utenfor er varer ingen har
+ * rørt på lenge.
+ *
+ * Trygt fordi den unike indeksen fanger opp resten: skulle en gammel arkivert
+ * rad ligge utenfor vinduet, feiler innsettingen med 23505, og runden går om
+ * igjen mot den raden i stedet for å lage en dublett.
+ */
+const CACHE_LIMIT = 1000;
+
 async function fetchAllItems(): Promise<ShoppingItem[]> {
-  const { data, error } = await sb().from(LIST).select('*');
+  const { data, error } = await sb()
+    .from(LIST)
+    .select('*')
+    .order('archived', { ascending: true })
+    .order('last_used_at', { ascending: false })
+    .limit(CACHE_LIMIT);
   fail('Klarte ikke å hente handlelista', error);
   return (data ?? []) as ShoppingItem[];
 }
@@ -278,16 +294,29 @@ export async function addFromRegister(item: ShoppingItem, quantities: Quantity[]
   return reviveItem(item.id, quantities);
 }
 
+/**
+ * Sammenlign-og-bytt, som alle de andre skriveveiene: les raden, skriv bare
+ * hvis versjonen fortsatt er den vi leste. Uten det var dette den ene veien
+ * som kunne overskrive det den andre telefonen rakk å gjøre mellom lesingen
+ * og skrivingen.
+ */
 export async function reviveItem(id: string, quantities: Quantity[]): Promise<void> {
-  const { data, error } = await sb().from(LIST).select('*').eq('id', id).maybeSingle();
-  fail('Klarte ikke å hente varen', error);
-  if (data === null) return;
-  const item = data as ShoppingItem;
-  const { error: updateError } = await sb()
-    .from(LIST)
-    .update(revivePayload(item, quantities, []))
-    .eq('id', id);
-  fail(`Klarte ikke å legge til ${item.name}`, updateError);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { data, error } = await sb().from(LIST).select('*').eq('id', id).maybeSingle();
+    fail('Klarte ikke å hente varen', error);
+    if (data === null) return;
+    const item = data as ShoppingItem;
+
+    const { data: written, error: updateError } = await sb()
+      .from(LIST)
+      .update(revivePayload(item, quantities, []))
+      .eq('id', id)
+      .eq('version', item.version)
+      .select('id');
+    fail(`Klarte ikke å legge til ${item.name}`, updateError);
+    if ((written ?? []).length > 0) return;
+  }
+  throw new Error('Klarte ikke å legge til varen — prøv igjen');
 }
 
 /** Sletter en vare for godt. Det eneste stedet noe faktisk fjernes. */
@@ -413,7 +442,7 @@ export async function updateItemById(
     .from(LIST)
     .update({
       name,
-      normalized_name: normalize(name),
+      normalized_name: normalizeName(name),
       category: patch.category,
       quantities: patch.quantities,
       updated_by: deviceName(),
@@ -463,6 +492,41 @@ export async function restoreItems(items: readonly ShoppingItem[]): Promise<void
     }
     fail(`Klarte ikke å angre ${item.name}`, insertError);
   }
+
+  await unlogUndonePurchases(items);
+}
+
+/**
+ * Angrer også kjøpsloggen.
+ *
+ * Triggeren i databasen har allerede skrevet «kjøpt» i det øyeblikket den
+ * avhukede varen ble arkivert. Angrer du så, står raden igjen som et kjøp
+ * som aldri skjedde — og siden loggen skal brukes til å regne ut hvor ofte
+ * noe kjøpes, ville det ene falske kjøpet halvert et intervall den dagen
+ * noen leser den.
+ *
+ * Bare den nyeste raden per vare fjernes, og bare når varen faktisk er
+ * tilbake på lista.
+ */
+async function unlogUndonePurchases(items: readonly ShoppingItem[]): Promise<void> {
+  const revived = items.filter((item) => !item.archived).map((item) => item.id);
+  if (revived.length === 0) return;
+
+  const { data, error } = await sb()
+    .from('purchases')
+    .select('id,item_id,bought_at')
+    .in('item_id', revived)
+    .order('bought_at', { ascending: false });
+  // Loggen er ikke verdt en feilmelding foran brukeren: angre lyktes uansett.
+  if (error !== null || data === null) return;
+
+  const newest = new Map<string, string>();
+  for (const row of data as { id: string; item_id: string }[]) {
+    if (!newest.has(row.item_id)) newest.set(row.item_id, row.id);
+  }
+  if (newest.size === 0) return;
+
+  await sb().from('purchases').delete().in('id', [...newest.values()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -540,7 +604,7 @@ export async function saveMeal(draft: MealDraft): Promise<string> {
     .map((ingredient, index) => ({
       meal_id: mealId,
       name: ingredient.name.trim(),
-      normalized_name: normalize(ingredient.name),
+      normalized_name: normalizeName(ingredient.name),
       amount: ingredient.amount,
       unit: ingredient.amount === null ? null : ingredient.unit,
       category: ingredient.category,

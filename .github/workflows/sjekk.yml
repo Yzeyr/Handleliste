@@ -1,0 +1,36 @@
+# Kjører det jeg ellers må huske å kjøre selv — og fanger den ene feilen som
+# ikke er synlig i koden: at docs/index.html, som er det telefonene faktisk
+# laster, er bygget fra en eldre versjon enn kilden.
+name: Sjekk
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sjekk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typer
+        run: npm run typecheck
+
+      - name: Tester
+        run: npm test
+
+      - name: Bygg på nytt og se at docs/ er i takt
+        run: |
+          npm run build:single
+          if ! git diff --quiet -- docs/; then
+            echo "::error::docs/ er ikke bygget fra denne koden. Kjør «npm run build:single» og commit resultatet."
+            git diff --stat -- docs/
+            exit 1
+          fi

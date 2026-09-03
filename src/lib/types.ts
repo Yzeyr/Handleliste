@@ -12,6 +12,22 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+/**
+ * Rekkefølgen man går gjennom butikken i. Bor her, ikke i visningene: to
+ * kopier av den samme rekkefølgen driver garantert fra hverandre, og da går
+ * lista og handlemodus i utakt uten at noe feiler.
+ */
+export const GROUP_ORDER: Category[] = [
+  'grønt',
+  'kjøtt',
+  'fisk',
+  'meieri',
+  'bakeri',
+  'frys',
+  'tørrvarer',
+  'annet',
+];
+
 export function isCategory(value: string): value is Category {
   return (CATEGORIES as readonly string[]).includes(value);
 }
