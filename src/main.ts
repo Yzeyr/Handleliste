@@ -214,8 +214,9 @@ async function start(container: HTMLElement): Promise<void> {
         };
       }),
     toggleChecked: (item: ShoppingItem) => {
+      // Haken av igjen: du tok den likevel ikke. Kjøpet trekkes fra.
       if (item.checked) {
-        queue(() => ({ kind: 'setChecked', id: item.id, checked: false }));
+        queue(() => ({ kind: 'setChecked', id: item.id, checked: false, count: -1 }));
         return;
       }
       // Et lite dunk i hånda: du ser ikke alltid på skjermen når du tar en
@@ -229,9 +230,9 @@ async function start(container: HTMLElement): Promise<void> {
       // feil rad, er den borte fra der du så den — derfor en angre-knapp.
       queueUndoable(
         `✓ ${item.name}`,
-        { kind: 'setChecked', id: item.id, checked: true },
+        { kind: 'setChecked', id: item.id, checked: true, count: 1 },
         [item],
-        { kind: 'setChecked', id: item.id, checked: false, quiet: true },
+        { kind: 'setChecked', id: item.id, checked: false, quiet: true, count: -1 },
         4000,
       );
     },

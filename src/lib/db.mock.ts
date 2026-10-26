@@ -10,6 +10,7 @@
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
+import { countPurchase } from './localStore.ts';
 import { deviceId, deviceName, loadConfig, saveConfig } from './config.ts';
 import type { PushTarget } from './push.ts';
 import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
@@ -404,11 +405,15 @@ export async function addManualItem(input: {
   ]);
 }
 
-export async function setChecked(itemId: string, checked: boolean): Promise<void> {
+export async function setChecked(itemId: string, checked: boolean, count?: 1 | -1): Promise<void> {
   if (feilNesteSkriving()) throw new Error('databasen sa nei (testbryter)');
   krevNett();
   const found = items.find((item) => item.id === itemId);
-  if (found !== undefined) found.checked = checked;
+  if (found !== undefined) {
+    found.checked = checked;
+    if (count !== undefined) Object.assign(found, countPurchase(found, count, new Date().toISOString()));
+    found.version += 1;
+  }
   notify();
 }
 

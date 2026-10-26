@@ -132,7 +132,7 @@ function renderRow(
   const details = isOpen
     ? el('div', { class: 'register-details' }, [
         // Bare det appen vet sikkert, og bare det som ikke allerede står i
-        // raden over — mengden og antall ganger er synlige der.
+        // raden over — mengden og når den sist ble kjøpt står der.
         // Ingen «du burde kjøpe denne nå».
         (sist !== null || brukesI.length > 0) &&
           el('dl', { class: 'facts' }, [
@@ -177,10 +177,14 @@ function renderRow(
             ]),
             el('span', {
               class: 'item-source',
-              text:
-                item.use_count === 1
-                  ? item.category
-                  : `${item.category} · kjøpt ${item.use_count} ganger`,
+              // Ikke «kjøpt N ganger» lenger: telleren øker både når varen
+              // havner på lista og når den hakes av, så tallet ville vært
+              // omtrent dobbelt så stort som det dere faktisk har handlet.
+              // Rekkefølgen viser hva dere kjøper mest; datoen er et rent faktum.
+              text: ((): string => {
+                const when = describeLastBought(item.last_used_at);
+                return when === null ? item.category : `${item.category} · sist ${when}`;
+              })(),
             }),
           ]),
         ],

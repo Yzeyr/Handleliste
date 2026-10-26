@@ -54,13 +54,23 @@ test('det som står på lista, vises ikke', () => {
   assert.deepEqual(names(ranked), ['Egg']);
 });
 
-test('én gang fra en oppskrift er ikke en favoritt', () => {
+test('én gang fra en oppskrift er ikke en favoritt, selv når den ble kjøpt', () => {
+  // Lagt på lista (1) og haket av (2): én lasagne. Kommet igjen (3): en vane.
   const ranked = rankFavorites(
-    [item('Hvitløk', { manual: false, uses: 1 }), item('Tomatpuré', { manual: false, uses: 3 })],
+    [item('Hvitløk', { manual: false, uses: 2 }), item('Tomatpuré', { manual: false, uses: 3 })],
     [],
     NOW,
   );
   assert.deepEqual(names(ranked), ['Tomatpuré']);
+});
+
+test('en vare du kjøper hver uke, går forbi en du kjøpte mye av i fjor', () => {
+  const ranked = rankFavorites(
+    [item('Cola', { uses: 20, daysAgo: 365 }), item('Melk', { uses: 6, daysAgo: 3 })],
+    [],
+    NOW,
+  );
+  assert.deepEqual(names(ranked), ['Melk', 'Cola']);
 });
 
 test('søk: begynner med kommer før inneholder', () => {

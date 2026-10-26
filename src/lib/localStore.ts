@@ -97,13 +97,31 @@ export function setCheckedLocal(
   id: string,
   checked: boolean,
   author: string | null,
+  count: 1 | -1 | undefined = undefined,
 ): void {
   const item = state.items.find((row) => row.id === id);
   if (item === undefined) return;
   item.checked = checked;
+  if (count !== undefined) Object.assign(item, countPurchase(item, count, now()));
   item.updated_by = author;
   item.updated_at = now();
   item.version += 1;
+}
+
+/**
+ * Hva et kjøp (eller et angret kjøp) gjør med tellingen. Delt av telefonen og
+ * databasen, så de to aldri teller ulikt. Aldri under 1: varen har vært på
+ * lista minst én gang. Et angret kjøp rører ikke datoen — hva den var før,
+ * vet vi ikke lenger, og et par dager feil der betyr lite.
+ */
+export function countPurchase(
+  item: Pick<ShoppingItem, 'use_count' | 'last_used_at'>,
+  count: 1 | -1,
+  stamp: string,
+): { use_count: number; last_used_at: string } {
+  return count === 1
+    ? { use_count: item.use_count + 1, last_used_at: stamp }
+    : { use_count: Math.max(1, item.use_count - 1), last_used_at: item.last_used_at };
 }
 
 export function archiveLocal(state: LocalState, ids: readonly string[], author: string | null): void {

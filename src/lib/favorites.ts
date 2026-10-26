@@ -24,8 +24,10 @@ export function favoriteScore(item: ShoppingItem, now: number): number {
  * Det som ikke allerede står på lista, mest brukte først.
  *
  * En vare som bare har kommet med en oppskrift, én gang, hører ikke hjemme
- * her: hvitløken fra lasagnen er ikke noe dere «ofte kjøper». Har den vært
- * med flere ganger, eller du har lagt den inn selv, er den det.
+ * her: hvitløken fra lasagnen er ikke noe dere «ofte kjøper». Telleren får
+ * +1 når varen havner på lista og +1 når den hakes av, så én lasagne gir 2.
+ * Først når den er kommet tilbake en gang til (3), eller du har lagt den inn
+ * selv, er den en favoritt.
  */
 export function rankFavorites(
   register: readonly ShoppingItem[],
@@ -35,7 +37,7 @@ export function rankFavorites(
   const taken = new Set(onList.map((item) => item.normalized_name));
   return register
     .filter((item) => !taken.has(item.normalized_name))
-    .filter((item) => item.manual || item.use_count >= 2)
+    .filter((item) => item.manual || item.use_count >= 3)
     .map((item) => ({ item, score: favoriteScore(item, now) }))
     .sort(
       (a, b) =>

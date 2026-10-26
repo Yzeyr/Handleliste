@@ -5,6 +5,7 @@ import type { ChangeEvent } from './changes.ts';
 import { itemsFromMeals, mergeQuantities, planListChange, type PendingItem } from './merge.ts';
 import { normalizeName } from './normalize.ts';
 import { normalizeUnit } from './units.ts';
+import { countPurchase } from './localStore.ts';
 import type { Category, Meal, MealDraft, MealIngredient, Quantity, ShoppingItem, WeekPlanItem } from './types.ts';
 
 const LIST = 'shopping_list_items';
@@ -242,9 +243,35 @@ export async function addManualItem(input: {
   ]);
 }
 
-export async function setChecked(id: string, checked: boolean): Promise<void> {
-  const { error } = await sb().from(LIST).update({ checked, updated_by: deviceName() }).eq('id', id);
-  fail('Klarte ikke å hake av varen', error);
+export async function setChecked(id: string, checked: boolean, count?: 1 | -1): Promise<void> {
+  if (count === undefined) {
+    const { error } = await sb().from(LIST).update({ checked, updated_by: deviceName() }).eq('id', id);
+    fail('Klarte ikke å hake av varen', error);
+    return;
+  }
+
+  // Med telling: sammenlign-og-bytt som reviveItem. Haker begge av samme
+  // vare samtidig, skal begge kjøpene telle, ikke bare det siste.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const { data, error } = await sb().from(LIST).select('*').eq('id', id).maybeSingle();
+    fail('Klarte ikke å hente varen', error);
+    if (data === null) return;
+    const item = data as ShoppingItem;
+
+    const { data: written, error: updateError } = await sb()
+      .from(LIST)
+      .update({
+        checked,
+        ...countPurchase(item, count, new Date().toISOString()),
+        updated_by: deviceName(),
+      })
+      .eq('id', id)
+      .eq('version', item.version)
+      .select('id');
+    fail('Klarte ikke å hake av varen', updateError);
+    if ((written ?? []).length > 0) return;
+  }
+  throw new Error('Klarte ikke å hake av varen — prøv igjen');
 }
 
 /**

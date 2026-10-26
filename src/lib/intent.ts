@@ -17,7 +17,11 @@ export type Intent =
   // quiet: avhukingen er en bieffekt av en opprydding, ikke en handling som
   // fortjener et varsel. Uten den ville «Fjern avhukede» sendt ett varsel per
   // egen vare som ble stående.
-  | { kind: 'setChecked'; id: string; checked: boolean; quiet?: boolean }
+  // count: en avhuking er et kjøp, og det er kjøpene som rangerer «Ofte
+  // kjøpt». +1 når du tar varen, -1 når du angrer eller haker den av igjen.
+  // Uten feltet (opprydding, eldre køer på telefonen) står tellingen som den
+  // er — at en vare ryddes etter handleturen, gjør ikke kjøpet ugjort.
+  | { kind: 'setChecked'; id: string; checked: boolean; quiet?: boolean; count?: 1 | -1 }
   | { kind: 'archive'; ids: string[] }
   | { kind: 'revive'; id: string; quantities: Quantity[] }
   | {

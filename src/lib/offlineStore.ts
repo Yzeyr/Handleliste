@@ -227,7 +227,7 @@ function applyLocally(intent: Intent, author: string | null): void {
       local.weekMarkAddedLocal(state, intent.mealIds);
       break;
     case 'setChecked':
-      local.setCheckedLocal(state, intent.id, intent.checked, author);
+      local.setCheckedLocal(state, intent.id, intent.checked, author, intent.count);
       break;
     case 'archive':
       local.archiveLocal(state, intent.ids, author);
@@ -266,7 +266,7 @@ async function send(intent: Intent): Promise<void> {
       await db.markWeekMealsAdded(intent.mealIds);
       return;
     case 'setChecked':
-      return db.setChecked(intent.id, intent.checked);
+      return db.setChecked(intent.id, intent.checked, intent.count);
     case 'archive':
       return db.archiveItems(intent.ids);
     case 'revive':
