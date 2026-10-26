@@ -38,12 +38,21 @@ export function createWeekView(actions: Actions): View<AppState> {
       chosen.filter(({ entry }) => entry.weekday !== null).map(({ entry, meal }) => [entry.weekday, { entry, meal }]),
     );
 
+    // 1 = mandag, som i basen. getDay() starter på søndag = 0.
+    const today = ((new Date().getDay() + 6) % 7) + 1;
+
     replaceChildren(
       days,
       WEEKDAYS.map(({ day, name }) => {
         const taken = onDay.get(day);
-        return el('li', { class: taken === undefined ? 'day-row empty' : 'day-row' }, [
-          el('span', { class: 'day-name', text: name }),
+        const classes = ['day-row', taken === undefined && 'empty', day === today && 'today']
+          .filter(Boolean)
+          .join(' ');
+        return el('li', { class: classes }, [
+          el('span', { class: 'day-name' }, [
+            el('span', { text: name }),
+            day === today && el('span', { class: 'today-tag', text: 'I dag' }),
+          ]),
           mealPicker(state.meals, taken?.meal ?? null, (meal) => {
             // «—» betyr at vi ikke spiser den, ikke at den flyttes til en
             // haug uten dag. Det er det tomvalget ser ut som.

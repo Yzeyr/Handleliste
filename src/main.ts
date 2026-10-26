@@ -73,11 +73,11 @@ function releaseScreenLock(): void {
   screenLock = null;
 }
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'liste', label: 'Liste' },
-  { id: 'middager', label: 'Middager' },
-  { id: 'uke', label: 'Uke' },
-  { id: 'varer', label: 'Varer' },
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: 'liste', label: 'Liste', icon: '📝' },
+  { id: 'middager', label: 'Middager', icon: '🍲' },
+  { id: 'uke', label: 'Uke', icon: '📅' },
+  { id: 'varer', label: 'Varer', icon: '📦' },
 ];
 
 const root = document.querySelector<HTMLDivElement>('#app');
@@ -213,13 +213,41 @@ async function start(container: HTMLElement): Promise<void> {
           mealIds: [],
         };
       }),
-    toggleChecked: (item: ShoppingItem) =>
-      queue(() => ({ kind: 'setChecked', id: item.id, checked: !item.checked })),
+    toggleChecked: (item: ShoppingItem) => {
+      if (item.checked) {
+        queue(() => ({ kind: 'setChecked', id: item.id, checked: false }));
+        return;
+      }
+      // Et lite dunk i hånda: du ser ikke alltid på skjermen når du tar en
+      // vare i butikken. Støttes ikke på iPhone, og da skjer det ingenting.
+      try {
+        navigator.vibrate?.(12);
+      } catch {
+        /* ingen vibrator, ingen skade */
+      }
+      // Varen flytter seg ned til «handlet» når den hakes av. Traff fingeren
+      // feil rad, er den borte fra der du så den — derfor en angre-knapp.
+      queueUndoable(
+        `✓ ${item.name}`,
+        { kind: 'setChecked', id: item.id, checked: true },
+        [item],
+        { kind: 'setChecked', id: item.id, checked: false, quiet: true },
+        4000,
+      );
+    },
     removeItem: (item: ShoppingItem) =>
       queueUndoable(`${item.name} fjernet`, { kind: 'archive', ids: [item.id] }, [item]),
     removeChecked: () => clear(state.items.filter((item) => item.checked)),
+    // Ett trykk på «Ofte kjøpt» legger varen rett inn. Angre henter raden
+    // tilbake slik den var, så et feiltrykk ikke teller som et kjøp.
     addFromRegister: (item: ShoppingItem, quantities: Quantity[]) =>
-      queue(() => ({ kind: 'revive', id: item.id, quantities })),
+      queueUndoable(
+        `${item.name} lagt til`,
+        { kind: 'revive', id: item.id, quantities },
+        [{ ...item }],
+        undefined,
+        4000,
+      ),
     forgetItem: (item: ShoppingItem) =>
       queueUndoable(`${item.name} slettet`, { kind: 'forget', id: item.id }, [item]),
     clearList: () => clear([...state.items]),
@@ -355,12 +383,18 @@ async function start(container: HTMLElement): Promise<void> {
     'nav',
     { class: 'tabs' },
     TABS.map((entry) =>
-      el('button', {
-        class: 'tab',
-        text: entry.label,
-        attrs: { type: 'button', 'data-tab': entry.id },
-        on: { click: () => setTab(entry.id) },
-      }),
+      el(
+        'button',
+        {
+          class: 'tab',
+          attrs: { type: 'button', 'data-tab': entry.id },
+          on: { click: () => setTab(entry.id) },
+        },
+        [
+          el('span', { class: 'tab-icon', text: entry.icon, attrs: { 'aria-hidden': 'true' } }),
+          el('span', { class: 'tab-label', text: entry.label }),
+        ],
+      ),
     ),
   );
 
@@ -531,15 +565,29 @@ async function start(container: HTMLElement): Promise<void> {
     intent: Intent,
     affected: ShoppingItem[],
     undoIntent?: Intent,
+    duration?: number,
   ): void {
     queue(() => intent);
-    offerUndo(label, async () => {
-      store.apply(undoIntent ?? { kind: 'restore', items: affected });
-      readFromStore();
-    });
+    offerUndo(
+      label,
+      async () => {
+        store.apply(undoIntent ?? { kind: 'restore', items: affected });
+        readFromStore();
+      },
+      duration,
+    );
   }
 
-  function offerUndo(label: string, undo: () => Promise<unknown>): void {
+  // Ett felles tidsur for når varselet skal bort. Med et eget ur per varsel
+  // gjemte det første uret det neste varselet før tiden var ute: haket du av
+  // to varer tett, forsvant angre-knappen for den andre nesten med en gang.
+  let hideTimer: number | undefined;
+  function hideToastIn(ms: number): void {
+    window.clearTimeout(hideTimer);
+    hideTimer = window.setTimeout(() => toast.classList.remove('visible'), ms);
+  }
+
+  function offerUndo(label: string, undo: () => Promise<unknown>, duration = 7000): void {
     window.clearTimeout(toastTimer);
     pending = [];
     replaceChildren(toast, [
@@ -565,9 +613,7 @@ async function start(container: HTMLElement): Promise<void> {
       }),
     ]);
     toast.classList.add('visible');
-    window.setTimeout(() => {
-      toast.classList.remove('visible');
-    }, 7000);
+    hideToastIn(duration);
   }
 
   /** Samler endringer som kommer tett, så det blir én melding og ikke fem. */
@@ -578,7 +624,7 @@ async function start(container: HTMLElement): Promise<void> {
       replaceChildren(toast, [el('span', { class: 'toast-text', text: summarizeChanges(pending) ?? '' })]);
       toast.classList.add('visible');
       pending = [];
-      window.setTimeout(() => toast.classList.remove('visible'), 4000);
+      hideToastIn(4000);
     }, 400);
   }
 

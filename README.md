@@ -75,6 +75,12 @@ iOS ikke godtar SVG som `apple-touch-icon`. PNG-ene og manifestet ligger i
 `public/` og kopieres til `docs/` av byggeskriptet — de kan ikke limes inn i
 HTML-en, iOS henter dem som egne filer.
 
+Endrer du ikonet: lag en liten HTML-side med `<img src="icons/icon.svg">` i
+riktig størrelse og ta et skjermbilde med en hodeløs nettleser, for eksempel
+`msedge --headless=new --window-size=180,180 --screenshot=icon-180.png side.html`
+(og det samme med 512). Bakgrunnen skal fylle hele kvadratet — telefonen
+runder av hjørnene selv, og gjennomsiktige hjørner blir svarte på iPhone.
+
 ## Skjermbilder av flyten
 
 Middager → «+ Uke» på de du vil ha → fanen Uke viser nøyaktig hvilke linjer

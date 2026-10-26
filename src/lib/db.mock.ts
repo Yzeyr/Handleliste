@@ -239,9 +239,59 @@ function pullServer(): void {
   if (stored.meals !== null && stored.meals !== undefined) MEALS = stored.meals;
   aliases = stored.aliases ?? [];
   pushTargets = stored.pushTargets ?? [];
+  // Telleren starter på null ved hver omlasting, men radene fra forrige gang
+  // ligger lagret. Uten dette fikk en ny vare samme id som en gammel, og en
+  // avhuking traff feil rad — varen så ut til å ignorere trykket.
+  const used = JSON.stringify(stored).match(/"mock-(\d+)"/g) ?? [];
+  for (const match of used) nextId = Math.max(nextId, Number(match.slice(6, -1)));
 }
 
 pullServer();
+
+/**
+ * Litt kjøpshistorikk i en helt fersk demo, så «Ofte kjøpt» og Varer har noe
+ * å vise. Uten den ser de to tomme ut til du har brukt appen en stund, og
+ * det er nettopp dem som skal prøves.
+ */
+if (readServer() === null) {
+  const history: [string, number, number, string, Category][] = [
+    ['Melk', 14, 1, 'l', 'meieri'],
+    ['Brød', 11, 1, 'stk', 'bakeri'],
+    ['Egg', 9, 12, 'stk', 'meieri'],
+    ['Bananer', 8, 6, 'stk', 'grønt'],
+    ['Smør', 6, 1, 'stk', 'meieri'],
+    ['Kaffe', 5, 1, 'pk', 'tørrvarer'],
+    ['Norvegia', 5, 1, 'stk', 'meieri'],
+    ['Yoghurt', 4, 4, 'stk', 'meieri'],
+    ['Epler', 3, 6, 'stk', 'grønt'],
+    ['Agurk', 3, 1, 'stk', 'grønt'],
+    ['Pizza', 2, 2, 'stk', 'frys'],
+    ['Dopapir', 2, 1, 'pk', 'annet'],
+  ];
+  const now = Date.now();
+  items = history.map(([name, uses, amount, unit, category], index) => {
+    const stamp = new Date(now - (index + 1) * 2 * 24 * 60 * 60 * 1000).toISOString();
+    return {
+      id: id(),
+      name,
+      normalized_name: normalizeName(name),
+      quantities: [{ amount, unit }],
+      category,
+      checked: false,
+      archived: true,
+      use_count: uses,
+      manual: true,
+      last_used_at: stamp,
+      updated_by: null,
+      version: 0,
+      source_meals: [],
+      note: null,
+      created_at: stamp,
+      updated_at: stamp,
+    };
+  });
+  writeServer();
+}
 
 export async function fetchMeals(): Promise<Meal[]> {
   krevNett();

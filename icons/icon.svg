@@ -1,39 +1,70 @@
-<!-- Kilden til public/icon-*.png. Gjengis med Chromium og lagres som PNG;
-     iOS godtar ikke SVG som apple-touch-icon. -->
+<!-- Kilden til public/icon-*.png. Gjengis med Chromium/Edge og lagres som PNG;
+     iOS godtar ikke SVG som apple-touch-icon.
+
+     Bakgrunnen fyller hele kvadratet, uten runde hjørner: telefonen runder
+     av selv, og gjennomsiktige hjørner blir svarte på iPhone. Alt som betyr
+     noe ligger innenfor sirkelen Android klipper «maskable»-ikoner til
+     (80 % av bredden, radius 205 rundt midten). -->
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
-    <!-- Selve sandwich-formen. Alt fyll klippes til denne, bortsett fra
-         salaten, som skal stikke utenfor — det er den som gjør at formen
-         leses som mat og ikke som en trekant. -->
-    <clipPath id="form">
-      <path d="M 256 104 L 408 392 L 104 392 Z"/>
-    </clipPath>
+    <!-- Samme grønn-til-blågrønn som headeren i appen. -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="bag" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef6f0"/>
+    </linearGradient>
+    <linearGradient id="bread" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f2c27a"/>
+      <stop offset="1" stop-color="#d9973f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.25" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="apple" cx="0.35" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ff6b5b"/>
+      <stop offset="1" stop-color="#d62f2f"/>
+    </radialGradient>
   </defs>
 
-  <rect width="512" height="512" rx="114" fill="#0d5c30"/>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Mykt lys oppe til venstre, så flaten ikke ser flat ut. -->
+  <rect width="512" height="512" fill="url(#glow)"/>
 
-  <g transform="rotate(-7 256 256)">
-    <!-- Overbrød, med skorpe langs de to skrå kantene -->
-    <path d="M 256 104 L 340 264 L 172 264 Z"
-          fill="#f3ddb0" stroke="#cf9a45" stroke-width="20" stroke-linejoin="round"/>
+  <!-- Skygge under posen -->
+  <ellipse cx="256" cy="412" rx="128" ry="16" fill="#053b2c" opacity="0.25"/>
 
-    <!-- Salat: bølget, bredere enn brødet, tegnet uten klipp -->
-    <path d="M 132 258
-             q 22 -20 44 0 q 22 -20 44 0 q 22 -20 44 0 q 22 -20 44 0
-             q 22 -20 44 0
-             l 0 26
-             q -22 20 -44 0 q -22 20 -44 0 q -22 20 -44 0 q -22 20 -44 0
-             q -22 20 -44 0 Z"
-          fill="#8fd44a"/>
-
-    <g clip-path="url(#form)">
-      <rect x="60" y="286" width="392" height="34" fill="#d9483b"/>
-      <rect x="60" y="320" width="392" height="30" fill="#f2b736"/>
-      <rect x="60" y="350" width="392" height="70" fill="#f3ddb0"/>
-    </g>
-
-    <!-- Underbrødets skorpe: bare langs bunnkanten -->
-    <path d="M 122 384 L 390 384" stroke="#cf9a45" stroke-width="26"
-          stroke-linecap="round" fill="none"/>
+  <!-- Varene, bak posen -->
+  <!-- Bagett -->
+  <g transform="rotate(24 300 190)">
+    <rect x="276" y="96" width="50" height="190" rx="25" fill="url(#bread)"/>
+    <path d="M 288 130 l 26 -12 M 288 165 l 26 -12 M 288 200 l 26 -12"
+          stroke="#b97a2c" stroke-width="7" stroke-linecap="round" fill="none"/>
   </g>
+  <!-- Salat / blader -->
+  <g fill="#16a34a">
+    <ellipse cx="178" cy="196" rx="24" ry="62" transform="rotate(-28 178 196)"/>
+    <ellipse cx="212" cy="176" rx="22" ry="64" transform="rotate(-8 212 176)"/>
+  </g>
+  <g fill="#4ade80">
+    <ellipse cx="196" cy="200" rx="18" ry="50" transform="rotate(-18 196 200)"/>
+  </g>
+  <!-- Eple -->
+  <circle cx="250" cy="226" r="40" fill="url(#apple)"/>
+  <path d="M 250 190 q 2 -16 14 -22" stroke="#7c4a1e" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M 258 184 q 22 -14 34 4 q -20 12 -34 -4 Z" fill="#22c55e"/>
+
+  <!-- Posen -->
+  <path d="M 146 248 L 366 248 L 352 400 Q 351 410 341 410 L 171 410 Q 161 410 160 400 Z"
+        fill="url(#bag)"/>
+  <!-- Brettekanten øverst -->
+  <path d="M 146 248 L 366 248 L 364 272 L 148 272 Z" fill="#d7eadc"/>
+
+  <!-- Haken: lista er handlet -->
+  <circle cx="256" cy="338" r="46" fill="#16a34a"/>
+  <path d="M 234 338 l 15 15 l 29 -31" stroke="#ffffff" stroke-width="13"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

@@ -20,7 +20,12 @@ const outDir = join(projectRoot, 'docs');
 const outFile = join(outDir, 'index.html');
 
 rmSync(distDir, { recursive: true, force: true });
-execFileSync('npx', ['vite', 'build'], { cwd: projectRoot, stdio: 'inherit' });
+// Vite startes gjennom node selv, ikke via npx: på Windows heter den
+// npx.cmd, og execFileSync finner den ikke uten et skall.
+execFileSync(process.execPath, [join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js'), 'build'], {
+  cwd: projectRoot,
+  stdio: 'inherit',
+});
 
 const assets = readdirSync(join(distDir, 'assets'));
 const jsFiles = assets.filter((name) => name.endsWith('.js'));

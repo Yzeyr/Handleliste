@@ -12,7 +12,13 @@ import { categoryForName } from '../lib/facts.ts';
 import { normalizeName } from '../lib/normalize.ts';
 import { acknowledge, loadAcknowledged, loadReminders, pendingReminders, today } from '../lib/reminders.ts';
 import { COMMON_UNITS, formatAmount, formatQuantities, normalizeUnit, parseAmount } from '../lib/units.ts';
+import { rankFavorites, searchRegister } from '../lib/favorites.ts';
 import type { Actions, AppState } from '../state.ts';
+import { categoryEmoji, categoryLabel, itemEmoji } from './category.ts';
+
+/** Så mange «Ofte kjøpt» vises før «Vis flere»: to rader à tre. */
+const FAVS_FEW = 6;
+const FAVS_MANY = 24;
 
 export function createListView(actions: Actions): View<AppState> {
   // Alt appen har sett før, til oppslag av kategori. Fylles ved hver tegning.
@@ -70,7 +76,7 @@ export function createListView(actions: Actions): View<AppState> {
     // Standard er å la appen finne kategorien. Ingen skal måtte åpne en
     // nedtrekksliste for å legge melk i handlelista.
     el('option', { text: 'kategori: automatisk', attrs: { value: AUTO, selected: true } }),
-    ...CATEGORIES.map((c) => el('option', { text: c, attrs: { value: c } })),
+    ...CATEGORIES.map((c) => el('option', { text: `${categoryEmoji(c)} ${categoryLabel(c)}`, attrs: { value: c } })),
   ]);
 
   const preview = el('p', { class: 'add-preview' });
@@ -189,22 +195,10 @@ export function createListView(actions: Actions): View<AppState> {
   let suggestionsOpen = false;
 
   function renderSuggestions(): void {
-    const query = nameInput.value.trim().toLowerCase();
-    const onList = new Set(current.items.map((item) => item.normalized_name));
-
-    const matches = current.register
-      .filter((item) => !onList.has(item.normalized_name))
-      // Uten søk: bare varer dere har lagt inn selv. Hvitløk og tomatpuré kom
-      // med en oppskrift og hører hjemme i Varer, ikke i det som spretter opp
-      // når du skal skrive en handleliste.
-      //
-      // Med søk: alt. Skriver du «hvitl», leter du etter noe bestemt, og da
-      // skal appen finne det.
-      .filter((item) => (query === '' ? item.manual : item.name.toLowerCase().includes(query)))
-      // Nyeste først her, ikke mest kjøpte: det du handlet sist er det du
-      // mest sannsynlig skal handle igjen.
-      .sort((a, b) => b.last_used_at.localeCompare(a.last_used_at))
-      .slice(0, 8);
+    // Bare mens du skriver. Uten tekst står «Ofte kjøpt» allerede synlig
+    // under feltet, og et panel med de samme varene oppå lista ville bare
+    // dekket det du skal hake av.
+    const matches = searchRegister(current.register, current.items, nameInput.value).slice(0, 8);
 
     form.classList.toggle('suggesting', suggestionsOpen && matches.length > 0);
     replaceChildren(
@@ -228,7 +222,10 @@ export function createListView(actions: Actions): View<AppState> {
             },
           },
           [
-            el('span', { class: 'suggestion-name', text: item.name }),
+            el('span', { class: 'suggestion-name' }, [
+              el('span', { class: 'suggestion-emoji', text: itemEmoji(item.name, item.category) }),
+              item.name,
+            ]),
             amount !== '' && el('span', { class: 'suggestion-qty', text: amount }),
           ],
         );
@@ -243,11 +240,11 @@ export function createListView(actions: Actions): View<AppState> {
       // Ingenting tolket ut over navnet, og ingen mengde skrevet i feltene
       // under: da er forhåndsvisningen bare støy.
       preview.textContent =
-        parsed === null ? '' : `${parsed.name} · ${parsed.category}`;
+        parsed === null ? '' : `${parsed.name} · ${categoryEmoji(parsed.category)} ${categoryLabel(parsed.category)}`;
       return;
     }
     const amount = parsed.amount === null ? '' : ` · ${formatQuantities([{ amount: parsed.amount, unit: parsed.unit }])}`;
-    preview.textContent = `${parsed.name}${amount} · ${parsed.category}`;
+    preview.textContent = `${parsed.name}${amount} · ${categoryEmoji(parsed.category)} ${categoryLabel(parsed.category)}`;
   }
 
   function submit(): void {
@@ -323,6 +320,67 @@ export function createListView(actions: Actions): View<AppState> {
     ],
   );
 
+  /**
+   * «Ofte kjøpt»: det dere kjøper hele tiden, ett trykk unna. Står alltid
+   * synlig, ikke bak et trykk i feltet — det meste som havner på en
+   * handleliste er noe som har vært der før.
+   */
+  const favs = el('section', { class: 'favs' });
+  let showAllFavs = false;
+
+  function renderFavorites(): void {
+    const ranked = rankFavorites(current.register, current.items);
+    if (ranked.length === 0) {
+      replaceChildren(favs, []);
+      return;
+    }
+    const shown = ranked.slice(0, showAllFavs ? FAVS_MANY : FAVS_FEW);
+    replaceChildren(favs, [
+      el('div', { class: 'favs-head' }, [
+        el('h2', { class: 'favs-title', text: 'Ofte kjøpt' }),
+        ranked.length > FAVS_FEW &&
+          el('button', {
+            class: 'favs-more',
+            text: showAllFavs ? 'Vis færre' : `Vis flere (${Math.min(ranked.length, FAVS_MANY) - FAVS_FEW})`,
+            attrs: { type: 'button' },
+            on: {
+              click: () => {
+                showAllFavs = !showAllFavs;
+                renderFavorites();
+              },
+            },
+          }),
+      ]),
+      el(
+        'div',
+        { class: 'fav-grid' },
+        shown.map((item) => {
+          const amount = formatQuantities(item.quantities);
+          return el(
+            'button',
+            {
+              class: 'fav',
+              attrs: {
+                type: 'button',
+                'data-cat': item.category,
+                'aria-label': `Legg til ${item.name}${amount !== '' ? `, ${amount}` : ''}`,
+              },
+              on: { click: () => actions.addFromRegister(item, item.quantities) },
+            },
+            [
+              el('span', { class: 'fav-emoji', text: itemEmoji(item.name, item.category) }),
+              el('span', { class: 'fav-text' }, [
+                el('span', { class: 'fav-name', text: item.name }),
+                amount !== '' && el('span', { class: 'fav-qty', text: amount }),
+              ]),
+              el('span', { class: 'fav-plus', text: '+' }),
+            ],
+          );
+        }),
+      ),
+    ]);
+  }
+
   const banner = el('div');
   const remindBand = el('div', { class: 'remind' });
   const shoppingEntry = el('div');
@@ -360,6 +418,7 @@ export function createListView(actions: Actions): View<AppState> {
   const element = el('section', { class: 'view' }, [
     form,
     pasteBox,
+    favs,
     remindBand,
     shoppingEntry,
     banner,
@@ -371,16 +430,19 @@ export function createListView(actions: Actions): View<AppState> {
     current = state;
     known = [...state.items, ...state.register];
     renderSuggestions();
+    renderFavorites();
     // Avhukede varer samles nederst i én bolk, ikke spredt utover i hver sin
     // seksjon. Det som står igjen å handle skal krympe mens du jobber; det du
     // har tatt skal fortsatt være synlig, men ute av veien.
     const checked = state.items.filter((item) => item.checked);
     const groups = [
       ...GROUP_ORDER.map((category) => ({
-        category,
+        cat: category as string,
+        title: categoryLabel(category),
+        emoji: categoryEmoji(category),
         items: state.items.filter((item) => !item.checked && item.category === category),
       })),
-      { category: `handlet (${checked.length})`, items: sortByCategory(checked) },
+      { cat: 'handlet', title: 'Handlet', emoji: '✅', items: sortByCategory(checked) },
     ].filter((group) => group.items.length > 0);
 
     if (groups.length === 0) {
@@ -391,8 +453,12 @@ export function createListView(actions: Actions): View<AppState> {
       replaceChildren(
         body,
         groups.map((group) =>
-          el('div', { class: 'group' }, [
-            el('h2', { class: 'group-title', text: group.category }),
+          el('div', { class: 'group', attrs: { 'data-cat': group.cat } }, [
+            el('h2', { class: 'group-title' }, [
+              el('span', { class: 'group-emoji', text: group.emoji }),
+              el('span', { text: group.title }),
+              el('span', { class: 'group-count', text: String(group.items.length) }),
+            ]),
             el('ul', { class: 'items' }, group.items.map((item) =>
                 renderItem(item, actions, state.unseen.has(item.id), open.has(item.id), () => {
                   if (open.has(item.id)) open.delete(item.id);
@@ -413,7 +479,7 @@ export function createListView(actions: Actions): View<AppState> {
       el('div', { class: 'row' }, [
         igjen > 0 &&
           el('button', {
-            class: 'outline grow',
+            class: 'primary grow shop-start',
             text: `🛒 Start handling · ${igjen} ${igjen === 1 ? 'vare' : 'varer'}`,
             attrs: { type: 'button' },
             on: { click: () => actions.startShopping() },
@@ -520,7 +586,10 @@ function renderItem(
   ]);
   enableSwipeToRemove(row, () => actions.removeItem(item));
 
-  return el('li', { class: classes }, [swipe, isOpen && renderEditor(item, actions, toggleOpen)]);
+  return el('li', { class: classes, attrs: { 'data-cat': item.category } }, [
+    swipe,
+    isOpen && renderEditor(item, actions, toggleOpen),
+  ]);
 }
 
 /** Så langt raden må dras før slippet betyr «fjern». */
@@ -628,7 +697,12 @@ function renderEditor(item: ShoppingItem, actions: Actions, close: () => void): 
   const categorySelect = el(
     'select',
     { class: 'category', attrs: { 'aria-label': 'Kategori' } },
-    CATEGORIES.map((c) => el('option', { text: c, attrs: { value: c, selected: c === item.category } })),
+    CATEGORIES.map((c) =>
+      el('option', {
+        text: `${categoryEmoji(c)} ${categoryLabel(c)}`,
+        attrs: { value: c, selected: c === item.category },
+      }),
+    ),
   );
   // «Ost» på en delt liste er tjue oster i butikken. Notatet er stedet den
   // som skriver kan si hvilken, og det vises der den andre står — på raden og

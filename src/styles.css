@@ -3,27 +3,48 @@
 
 :root {
   color-scheme: light dark;
-  --bg: #f6f6f4;
+  --bg: #f1f4ef;
   --surface: #ffffff;
-  --line: #e2e2dd;
-  --text: #1b1b1a;
-  --muted: #6b6b66;
-  --accent: #16a34a;
-  --danger: #b91c1c;
-  --radius: 12px;
+  --line: #e1e6de;
+  --text: #13201a;
+  --muted: #5d6a62;
+  /* Mørk nok til hvit tekst (5:1). */
+  --accent: #15803d;
+  --accent-soft: #dcfce7;
+  --on-accent: #ffffff;
+  --danger: #dc2626;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgb(16 32 24 / 6%), 0 4px 16px rgb(16 32 24 / 7%);
+  --header: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16171a;
-    --surface: #1f2126;
-    --line: #33363d;
-    --text: #ececea;
-    --muted: #9a9a95;
-    --accent: #34d399;
+    --bg: #0e1411;
+    --surface: #18201b;
+    --line: #29332d;
+    --text: #e8efe9;
+    --muted: #9aa79f;
+    --accent: #22c55e;
+    --accent-soft: #143d24;
+    --on-accent: #052e16;
     --danger: #f87171;
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 16px rgb(0 0 0 / 25%);
+    --header: linear-gradient(135deg, #166534 0%, #115e59 100%);
   }
 }
+
+/* Én farge per butikk-seksjon. Samme farge på overskriften, stripa på raden
+   og knappen under «Ofte kjøpt», så øyet finner meieri uten å lese. */
+[data-cat='grønt'] { --cat: #16a34a; }
+[data-cat='kjøtt'] { --cat: #dc2626; }
+[data-cat='fisk'] { --cat: #2563eb; }
+[data-cat='meieri'] { --cat: #ca8a04; }
+[data-cat='bakeri'] { --cat: #ea580c; }
+[data-cat='frys'] { --cat: #0891b2; }
+[data-cat='tørrvarer'] { --cat: #a16207; }
+[data-cat='annet'] { --cat: #7c3aed; }
+[data-cat='handlet'] { --cat: #6b7280; }
 
 * { box-sizing: border-box; }
 
@@ -33,6 +54,7 @@ body {
   color: var(--text);
   font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #app {
@@ -50,26 +72,41 @@ body {
   top: 0;
   z-index: 2;
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top) + 14px) 12px 14px 16px;
+  background: var(--header);
+  color: #fff;
+  box-shadow: 0 2px 12px rgb(13 80 60 / 25%);
 }
 
-.app-header h1 { margin: 0; font-size: 20px; }
+.app-header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.app-header h1::before { content: '🛒 '; }
 
-.status { font-size: 13px; color: var(--muted); flex: 1; min-width: 0; }
+/* To linjer på det meste, så en lang melding ikke skyver knappene ut. */
+.status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: rgb(255 255 255 / 88%);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 .settings-button {
   flex: none;
-  min-height: 36px;
+  min-height: 40px;
+  min-width: 40px;
   padding: 6px 10px;
-  background: transparent;
+  background: rgb(255 255 255 / 16%);
   border: none;
+  border-radius: 999px;
   font-size: 18px;
   line-height: 1;
-  color: var(--muted);
+  color: #fff;
 }
 
 /* --- Medlemskort --------------------------------------------------------- */
@@ -118,7 +155,7 @@ body {
   border-radius: 999px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #08240f;
+  color: var(--on-accent);
   font-weight: 600;
   font-size: 15px;
 }
@@ -164,8 +201,8 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px 12px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);
   border-radius: var(--radius);
 }
 
@@ -173,10 +210,12 @@ body {
 
 .remind-label {
   font-size: 12px;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent);
 }
+.remind-label::before { content: '🔔 '; }
 
 /* Trykket betyr «ja, den har jeg» — derfor ser den ut som noe å hake av,
    ikke som en knapp som skal utføre noe. */
@@ -286,7 +325,9 @@ body {
 }
 
 hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
-.status.error { color: var(--danger); }
+/* Rødt på grønn header leses dårlig. Hvitt og fet, med et varseltegn. */
+.status.error { color: #fff; font-weight: 700; }
+.status.error::before { content: '⚠️ '; }
 
 .update-bar {
   display: flex;
@@ -295,7 +336,7 @@ hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
   gap: 12px;
   padding: 8px 12px 8px 16px;
   background: var(--accent);
-  color: #08240f;
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 500;
 }
@@ -329,7 +370,7 @@ hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
   gap: 12px;
   padding: 8px 12px 8px 16px;
   background: var(--accent);
-  color: #08240f;
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 500;
 }
@@ -361,17 +402,29 @@ hr { border: none; border-top: 1px solid var(--line); margin: 8px 0; }
 
 input, select, button {
   font: inherit;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
   padding: 12px;
   background: var(--surface);
   color: var(--text);
-  min-height: 46px;
+  min-height: 48px;
 }
 
 input:focus-visible, select:focus-visible, button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
   outline-offset: 1px;
+}
+
+input:focus { border-color: var(--accent); }
+
+/* Et trykk skal kjennes: knappen gir litt etter under fingeren. */
+button { transition: transform 0.08s ease, background-color 0.15s ease; }
+button:active:not(:disabled) { transform: scale(0.97); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+  button:active:not(:disabled) { transform: none; }
 }
 
 .add-form { display: flex; flex-direction: column; gap: 8px; }
@@ -436,7 +489,72 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 
 .suggestion:last-child { border-bottom: none; }
-.suggestion-name { font-weight: 500; }
+.suggestion-name { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.suggestion-emoji { font-size: 20px; }
+
+/* ---------- ofte kjøpt ---------- */
+
+.favs { display: flex; flex-direction: column; gap: 8px; }
+.favs:empty { display: none; }
+
+.favs-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.favs-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.favs-more {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Tre i bredden: nok til at de vanligste står klare, uten at lista du skal
+   hake av havner langt nede. */
+.fav-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+
+.fav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 50px;
+  padding: 6px 8px;
+  text-align: left;
+  background: color-mix(in srgb, var(--cat) 11%, var(--surface));
+  border: 1.5px solid color-mix(in srgb, var(--cat) 28%, transparent);
+  border-radius: 14px;
+}
+
+.fav-emoji { flex: none; font-size: 20px; line-height: 1; }
+.fav-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fav-name { font-size: 14px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fav-qty { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Lite pluss i hjørnet: sier «trykk for å legge til» uten å ta plass. */
+.fav-plus {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--cat);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg);
+}
 .suggestion-qty { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { width: 33%; }
 .unit { width: 33%; }
@@ -448,18 +566,23 @@ button { cursor: pointer; }
 .primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #08240f;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .wide { width: 100%; }
 
 .outline {
-  background: transparent;
-  border: 1px dashed var(--line);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: var(--shadow);
 }
+
+/* Knappen du ser i butikkdøra. Størst på skjermen, med vilje. */
+.shop-start { min-height: 58px; font-size: 17px; border-radius: 16px; }
 
 .ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 10px 4px; }
 .ghost.danger { color: var(--danger); }
@@ -469,14 +592,38 @@ button { cursor: pointer; }
 .list-body { display: flex; flex-direction: column; gap: 18px; }
 
 .group-title {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 5px 8px 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cat, var(--muted)) 14%, var(--surface));
+  color: color-mix(in srgb, var(--cat, var(--muted)) 70%, var(--text));
+  font-size: 14px;
+  font-weight: 800;
 }
 
-.items { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.group-emoji { font-size: 17px; line-height: 1; }
+
+.group-count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--cat, var(--muted));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.items { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+
+/* Stripa i seksjonens farge langs venstre kant. */
+.items .item[data-cat] .item-row { box-shadow: inset 4px 0 0 var(--cat); }
 
 .item { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: none; }
@@ -565,23 +712,24 @@ button { cursor: pointer; }
 
 .tick {
   flex: none;
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--line);
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid color-mix(in srgb, var(--cat, var(--muted)) 55%, var(--line));
+  border-radius: 999px;
   display: grid;
   place-items: center;
   font-size: 15px;
+  font-weight: 800;
   line-height: 1;
-  color: var(--accent);
+  color: #fff;
 }
 
-.item.checked .tick { border-color: var(--accent); }
+.item.checked .tick { border-color: var(--accent); background: var(--accent); }
 
 
 .item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .item-line { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.item-name { font-weight: 500; }
+.item-name { font-weight: 650; font-size: 17px; }
 .item-qty { color: var(--muted); font-variant-numeric: tabular-nums; }
 .item-source { font-size: 12px; color: var(--muted); }
 
@@ -670,7 +818,7 @@ textarea {
 
 .meals-body { display: flex; flex-direction: column; gap: 8px; }
 
-.meal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.meal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .meal-top { display: flex; align-items: center; gap: 8px; padding-right: 10px; }
 
 .meal-header {
@@ -686,14 +834,25 @@ textarea {
   padding: 12px;
 }
 
-.meal-emoji { font-size: 22px; flex: none; }
+.meal-emoji {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 24px;
+}
+
+.loose .meal-emoji { width: auto; height: auto; background: transparent; font-size: 20px; }
 .meal-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .meal-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meal-desc { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chevron { color: var(--muted); margin-left: auto; }
 
 .week-toggle { flex: none; padding: 8px 10px; min-height: 40px; min-width: 74px; font-size: 14px; white-space: nowrap; text-align: center; }
-.week-toggle.on { background: var(--accent); border-color: var(--accent); color: #08240f; font-weight: 600; }
+.week-toggle.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
 .meal-details { border-top: 1px solid var(--line); padding: 4px 12px 14px; }
 .meal-details h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 6px; }
@@ -718,8 +877,8 @@ textarea {
   margin: 0;
   padding: 0;
   background: var(--surface);
-  border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -762,6 +921,18 @@ textarea {
 /* En tom dag skal se tom ut, ikke som et utfylt felt som venter på noe. */
 .day-pick.empty { color: var(--muted); }
 .day-row.empty { background: transparent; }
+.day-row:not(.empty) .day-pick { font-weight: 700; }
+
+/* I dag skiller seg ut: det er dagen du som regel lurer på. */
+.day-row.today { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+.day-row.today .day-name { flex-direction: column; align-items: flex-start; gap: 0; color: var(--accent); }
+
+.today-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 .loose { display: flex; flex-direction: column; gap: 8px; }
 .loose-title { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
@@ -831,7 +1002,7 @@ textarea {
   align-self: center;
 }
 
-.item.unseen .item-name { font-weight: 650; }
+.item.unseen .item-name { font-weight: 800; }
 
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
@@ -846,11 +1017,27 @@ textarea {
   gap: 4px;
   padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px);
   background: var(--surface);
-  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 14px rgb(16 32 24 / 8%);
 }
 
-.tab { flex: 1; min-width: 0; padding: 12px 4px; font-size: 15px; background: transparent; border: none; color: var(--muted); font-weight: 500; }
-.tab.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tab {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tab-icon { font-size: 22px; line-height: 1.1; filter: grayscale(0.85); opacity: 0.75; }
+.tab.active { color: var(--accent); background: var(--accent-soft); }
+.tab.active .tab-icon { filter: none; opacity: 1; }
 
 /* ---------- oppsett ---------- */
 
@@ -890,19 +1077,29 @@ textarea {
 .shopping-top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.shopping-top .ghost {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-weight: 700;
 }
 
 .progress { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .progress-text {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .progress-track {
-  height: 6px;
+  height: 12px;
   border-radius: 999px;
   background: var(--line);
   overflow: hidden;
@@ -911,7 +1108,8 @@ textarea {
 .progress-fill {
   height: 100%;
   width: 0;
-  background: var(--accent);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #14b8a6);
   transition: width 0.25s ease;
 }
 
@@ -922,12 +1120,12 @@ textarea {
   margin: 0;
   padding: 0;
   background: var(--surface);
-  border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
-.shopping-item { border-bottom: 1px solid var(--line); }
+.shopping-item { border-bottom: 1px solid var(--line); box-shadow: inset 5px 0 0 var(--cat, transparent); }
 .shopping-item:last-child { border-bottom: none; }
 
 .shopping-tap {
@@ -945,15 +1143,16 @@ textarea {
 
 .big-tick {
   flex: none;
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--line);
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border: 3px solid color-mix(in srgb, var(--cat, var(--muted)) 55%, var(--line));
+  border-radius: 999px;
   display: grid;
   place-items: center;
   font-size: 20px;
+  font-weight: 800;
   line-height: 1;
-  color: var(--accent);
+  color: #fff;
 }
 
 
@@ -965,7 +1164,7 @@ textarea {
 }
 
 .shopping-item.checked { opacity: 0.4; }
-.shopping-item.checked .big-tick { border-color: var(--accent); }
+.shopping-item.checked .big-tick { border-color: var(--accent); background: var(--accent); }
 .shopping-item.checked .shopping-name,
 .shopping-item.checked .shopping-qty { text-decoration: line-through; }
 
@@ -975,7 +1174,7 @@ textarea {
 .item.checked .item-note { color: var(--muted); }
 
 .shopping-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.shopping-name { font-size: 19px; font-weight: 500; }
+.shopping-name { font-size: 20px; font-weight: 700; }
 .shopping-note { font-size: 15px; color: var(--accent); }
 .shopping-item.checked .shopping-note { color: var(--muted); }
 
@@ -984,7 +1183,7 @@ textarea {
 .shopping-add { display: flex; gap: 8px; }
 
 .shopping-footer { display: flex; flex-direction: column; gap: 8px; }
-.all-done { margin: 0; font-weight: 600; }
+.all-done { margin: 0; font-size: 20px; font-weight: 800; text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .progress-fill { transition: none; }

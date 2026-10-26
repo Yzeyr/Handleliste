@@ -1,0 +1,5 @@
+# Unix-linjeskift i arbeidsmappa også på Windows. Ellers bygges
+# docs/index.html fra CRLF-filer lokalt og fra LF-filer i CI, og «Sjekk»
+# melder at docs/ ikke er i takt selv om koden er den samme.
+* text=auto eol=lf
+*.png binary
