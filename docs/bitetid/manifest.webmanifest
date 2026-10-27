@@ -1,0 +1,17 @@
+{
+  "name": "Bitetid",
+  "short_name": "Bitetid",
+  "description": "Når og hvor du bør fiske: bitepoeng time for time ut fra sol, måne, lufttrykk og vær.",
+  "lang": "no",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#09151a",
+  "theme_color": "#0e2236",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
