@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=fd98ec12f6';
-import { buildModel, buildHistory } from './model.js?v=fd98ec12f6';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=fd98ec12f6';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=fd98ec12f6';
-import { scoreLabel } from './score.js?v=fd98ec12f6';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=fd98ec12f6';
-import * as store from './store.js?v=fd98ec12f6';
-import * as ui from './ui.js?v=fd98ec12f6';
-import { createMap } from './map.js?v=fd98ec12f6';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=fd98ec12f6';
-import { gearAdvice, oterWeather } from './gear.js?v=fd98ec12f6';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=fd98ec12f6';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=fd98ec12f6';
-import { badConditionTips } from './tips.js?v=fd98ec12f6';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=86f1f0be75';
+import { buildModel, buildHistory, MODELS } from './model.js?v=86f1f0be75';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=86f1f0be75';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=86f1f0be75';
+import { scoreLabel } from './score.js?v=86f1f0be75';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=86f1f0be75';
+import * as store from './store.js?v=86f1f0be75';
+import * as ui from './ui.js?v=86f1f0be75';
+import { createMap } from './map.js?v=86f1f0be75';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=86f1f0be75';
+import { gearAdvice, oterWeather } from './gear.js?v=86f1f0be75';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=86f1f0be75';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=86f1f0be75';
+import { badConditionTips } from './tips.js?v=86f1f0be75';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -32,6 +32,9 @@ const TABS = [
 
 const data = store.load();
 if (!SPECIES.some((s) => s.id === data.species)) data.species = 'orret';
+// Hvilken poengsum som styrer kurver og beste tider. Erfaring er standard:
+// det er slik de fleste fiskere tenker, og det du er vant til.
+if (!MODELS[data.model]) data.model = 'erfaring';
 data.recent ??= [];
 
 let place = data.place ?? DEFAULT_PLACE;
@@ -90,7 +93,10 @@ async function refresh({ quiet = false } = {}) {
 }
 
 function rebuild() {
-  model = forecast ? buildModel(forecast, place, Date.now(), historyHours(archive, place)) : null;
+  model = forecast
+    ? buildModel(forecast, place, Date.now(), historyHours(archive, place), { model: data.model, speciesId: data.species })
+    : null;
+  archiveDays = null;
   render();
 }
 
@@ -375,7 +381,7 @@ function todayView() {
   return `
   ${place.example ? `<button type="button" class="banner" data-act="place">Viser Salvatnet som eksempel. <strong>Velg ditt vann</strong></button>` : ''}
   <section class="hero card">
-    <div class="hero-dial">${ui.dial(h.score)}</div>
+    <div class="hero-dial">${ui.dial(h.score)}${modelSwitch(h)}</div>
     <div class="hero-text">
       <p class="eyebrow">Akkurat nå · ${ui.time(now, tz)}</p>
       <h2 class="verdict tier-${ui.tier(h.score)}">${scoreLabel(h.score)}</h2>
@@ -390,7 +396,7 @@ function todayView() {
     <summary><span><strong>Hvorfor akkurat nå?</strong><span class="why-summary">${ui.esc(whySummary(h.score, h.reasons))}</span></span><span class="why-more" aria-hidden="true">Vis</span></summary>
     ${reasonList(h.reasons)}
     ${nbList(h.warnings)}
-    <p class="hint">Poengene starter på 30 og justeres opp eller ned av hver ting over. Lyset og lufttrykket teller mest.</p>
+    <p class="hint">${MODEL_TEXT[data.model]} Poengene starter på 30 og justeres av hver ting over. Bytt modell under poengskiva.</p>
   </details>
 
   <section class="card">
@@ -509,7 +515,7 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=fd98ec12f6').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=86f1f0be75').catch(() => null));
 
 /** Fangster innenfor 2 km fra vannet, så kortet kan si «3 fangster her». */
 function catchesHere() {
@@ -600,6 +606,29 @@ function whySummary(score, reasons) {
   if (neg.length === 0) return 'Ingenting spesielt som hjelper akkurat nå. Vent på skumringen.';
   return `Tregt: ${list(neg.slice(0, 3))}.${pos.length ? ` Det som hjelper: ${list(pos.slice(0, 2))}.` : ''}`;
 }
+
+/**
+ * Bryteren under poengskiva: begge poengsummene side om side, og den valgte
+ * er den som styrer resten av appen.
+ */
+function modelSwitch(h) {
+  return `<div class="model-switch" role="group" aria-label="Poengmodell">
+    ${Object.entries(MODELS)
+      .map(
+        ([id, m]) =>
+          `<button type="button" data-act="model" data-id="${id}" aria-pressed="${data.model === id}">
+            <span>${m.short}</span><strong class="tier-${ui.tier(h.scores[id])}">${h.scores[id]}</strong></button>`,
+      )
+      .join('')}
+  </div>`;
+}
+
+const MODEL_TEXT = {
+  erfaring:
+    'Erfaring vekter slik fiskere flest tenker: skumring, månen og solunar-tider, lufttrykk og nordavind.',
+  forskning:
+    'Forskning vekter etter hva studiene viser: mest skumring, art og vanntemperatur, lite måne og lufttrykk, og ingen straff for nordavind.',
+};
 
 /** «Slik får du fisk likevel»: råd for det som trekker ned akkurat nå. */
 function tipsBlock(score, reasons) {
@@ -699,6 +728,7 @@ function hourStrip(hours, tz, now) {
           <div class="card-head"><h4>Kl. ${ui.span(picked.t, picked.t + 3_600_000, tz)} · <span class="tier-${ui.tier(picked.score)}">${picked.score} ${scoreLabel(picked.score).toLowerCase()}</span></h4>
           <button type="button" class="icon-btn" data-act="hour" data-t="${picked.t}" aria-label="Lukk">×</button></div>
           <p class="why-summary">${ui.esc(whySummary(picked.score, picked.reasons))}</p>
+          <p class="meta">${MODELS[data.model].name} · ${data.model === 'forskning' ? 'Erfaring' : 'Forskning'} gir ${picked.other.score}</p>
           ${reasonList(picked.reasons)}
           ${nbList(picked.warnings)}
           ${tipsBlock(picked.score, picked.reasons)}
@@ -771,7 +801,11 @@ function weekView() {
     </div>`;
 
   if (weekMode === 'bak') {
-    archiveDays ??= buildHistory(historyHours(archive, place), place, tz, now, 30);
+    archiveDays ??= buildHistory(historyHours(archive, place), place, tz, now, 30, {
+      model: data.model,
+      speciesId: data.species,
+      waterTemp: model.waterTemp,
+    });
     const stored = coveredDays(archive, place);
     if (archiveDays.length === 0) {
       return `${toggle}<section class="card empty-state"><h2>Ingen historikk ennå</h2><p>Været lagres på telefonen hver gang appen henter nytt varsel.</p></section>`;
@@ -1235,13 +1269,18 @@ document.addEventListener('click', async (e) => {
       persist();
       tab = 'fisk';
       window.history.replaceState(null, '', '#fisk');
-      render();
+      rebuild();
       window.scrollTo({ top: 0 });
+      break;
+    case 'model':
+      data.model = el.dataset.id;
+      persist();
+      rebuild();
       break;
     case 'species':
       data.species = el.dataset.id;
       persist();
-      render();
+      rebuild();
       break;
     case 'season':
       seasonOverride = el.dataset.id;

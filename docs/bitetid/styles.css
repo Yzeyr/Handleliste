@@ -733,3 +733,10 @@ p { margin: 0; }
 .lake-fish { display: flex; flex-direction: column; gap: 8px; }
 .fish-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .chip.static { cursor: default; }
+
+/* -- erfaring eller forskning */
+.hero-dial { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.model-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 12px; background: var(--surface-2); width: 100%; max-width: 160px; }
+.model-switch button { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 4px 2px; border: none; border-radius: 9px; background: none; color: var(--muted); font-size: 0.66rem; font-weight: 700; }
+.model-switch button strong { font-family: var(--mono); font-size: 0.95rem; }
+.model-switch button[aria-pressed='true'] { background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
