@@ -745,3 +745,8 @@ p { margin: 0; }
 .spot { font-size: 0.92rem; display: flex; gap: 8px; align-items: baseline; }
 .spot-tag { flex: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--water); background: color-mix(in srgb, var(--water) 12%, transparent); padding: 2px 8px; border-radius: 999px; }
 .mountain-tag { font-size: 0.9rem; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--water) 10%, var(--surface)); color: var(--text); }
+
+/* -- hvilken poengmodell Uke bruker */
+.model-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.85rem; color: var(--muted); }
+.segmented.small { flex: 1; max-width: 240px; box-shadow: none; background: var(--surface-2); }
+.segmented.small button { min-height: 34px; font-size: 0.85rem; }

@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=3546145457';
-import { buildModel, buildHistory, MODELS } from './model.js?v=3546145457';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=3546145457';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=3546145457';
-import { scoreLabel } from './score.js?v=3546145457';
-import { SPECIES, SEASONS, fishSeason, conditionTips, MOUNTAIN_M } from './species.js?v=3546145457';
-import * as store from './store.js?v=3546145457';
-import * as ui from './ui.js?v=3546145457';
-import { createMap } from './map.js?v=3546145457';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=3546145457';
-import { gearAdvice, oterWeather } from './gear.js?v=3546145457';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=3546145457';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=3546145457';
-import { badConditionTips, windSpot } from './tips.js?v=3546145457';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=44c14a385c';
+import { buildModel, buildHistory, MODELS } from './model.js?v=44c14a385c';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=44c14a385c';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=44c14a385c';
+import { scoreLabel } from './score.js?v=44c14a385c';
+import { SPECIES, SEASONS, fishSeason, conditionTips, MOUNTAIN_M } from './species.js?v=44c14a385c';
+import * as store from './store.js?v=44c14a385c';
+import * as ui from './ui.js?v=44c14a385c';
+import { createMap } from './map.js?v=44c14a385c';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=44c14a385c';
+import { gearAdvice, oterWeather } from './gear.js?v=44c14a385c';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=44c14a385c';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=44c14a385c';
+import { badConditionTips, windSpot } from './tips.js?v=44c14a385c';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -522,7 +522,7 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=3546145457').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=44c14a385c').catch(() => null));
 
 /**
  * Høyden over havet for vannet: fra NVE når vi har den, ellers høyden
@@ -820,6 +820,14 @@ function weekView() {
   const toggle = `<div class="segmented" role="group" aria-label="Periode">
       <button type="button" data-act="week-mode" data-mode="fram" aria-pressed="${weekMode === 'fram'}">Neste ${model.days.length} dager</button>
       <button type="button" data-act="week-mode" data-mode="bak" aria-pressed="${weekMode === 'bak'}">Siste 30 dager</button>
+    </div>
+    <div class="model-row">
+      <span>Poeng etter</span>
+      <div class="segmented small" role="group" aria-label="Poengmodell">
+        ${Object.entries(MODELS)
+          .map(([id, m]) => `<button type="button" data-act="model" data-id="${id}" aria-pressed="${data.model === id}">${m.name}</button>`)
+          .join('')}
+      </div>
     </div>`;
 
   if (weekMode === 'bak') {
@@ -852,7 +860,7 @@ function weekView() {
       <p class="next">${scoreLabel(best.score)}${best.windows[0] ? `, best ${ui.span(best.windows[0].start, best.windows[0].end, tz)}` : ''}.</p>
     </section>
     <ul class="days">${dayRows(model.days, { past: false, tz, now, prefix: 'f' })}</ul>
-    <p class="hint">Poengene er snittet av dagens fem beste timer. Trykk på en dag for døgnkurven.</p>`;
+    <p class="hint">Poengene er ${data.model === 'forskning' ? 'forskningsbaserte' : 'erfaringsbaserte'}, og er snittet av dagens fem beste timer. ${MODEL_TEXT[data.model]} Trykk på en dag for døgnkurven.</p>`;
 }
 
 /**

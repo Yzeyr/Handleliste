@@ -9,8 +9,8 @@
  * Salvatnet overlapper på de groveste zoomnivåene. Sletter du det ene, blir
  * bitene det andre trenger liggende.
  */
-import { tilesForBounds, tileUrl, MAX_TILES } from './tiles.js?v=3546145457';
-import { newId } from './store.js?v=3546145457';
+import { tilesForBounds, tileUrl, MAX_TILES } from './tiles.js?v=44c14a385c';
+import { newId } from './store.js?v=44c14a385c';
 
 export const TILE_CACHE = 'bitetid-kart';
 const KEY = 'bitetid.kart.v1';
