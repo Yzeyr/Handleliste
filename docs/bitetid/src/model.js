@@ -3,9 +3,9 @@
  * poeng, beste perioder, sol og måne. Ren funksjon av værdata, sted og «nå»,
  * så den kan testes uten nett.
  */
-import { skyDay, solunarPeriods, sunAltitude } from './astro.js';
-import { bestWindows, dayScore, hourScore } from './score.js';
-import { dailyFromHours, estimateWaterTemp } from './weather.js';
+import { skyDay, solunarPeriods, sunAltitude } from './astro.js?v=c95e47cafc';
+import { bestWindows, dayScore, hourScore } from './score.js?v=c95e47cafc';
+import { dailyFromHours, estimateWaterTemp } from './weather.js?v=c95e47cafc';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;

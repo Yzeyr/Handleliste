@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-v5';
+const CACHE = 'bitetid-c95e47cafc';
 const SHELL = [
   './',
   './index.html',
@@ -47,8 +47,15 @@ self.addEventListener('fetch', (event) => {
   const own = url.origin === self.location.origin;
   const cdn = url.hostname === 'cdnjs.cloudflare.com' || url.hostname.endsWith('gstatic.com') || url.hostname === 'fonts.googleapis.com';
   if (event.request.method !== 'GET' || (!own && !cdn)) return;
+  // Appens egne filer hentes med «no-cache»: nettleseren må spørre GitHub om
+  // fila er endret, i stedet for å bruke sin egen kopi. GitHub ber nettlesere
+  // beholde filer i 10 minutter, og uten dette fikk telefonene gammel kode
+  // en stund etter hver oppdatering — også kode med feil som var rettet.
+  const network = own && event.request.mode !== 'navigate'
+    ? fetch(event.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+    : fetch(event.request, own ? { cache: 'no-cache' } : undefined);
   event.respondWith(
-    fetch(event.request)
+    network
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
@@ -56,6 +63,10 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       })
-      .catch(() => caches.match(event.request).then((hit) => hit ?? caches.match('./index.html'))),
+      .catch(() =>
+        caches
+          .match(event.request, { ignoreSearch: true })
+          .then((hit) => hit ?? caches.match('./index.html')),
+      ),
   );
 });

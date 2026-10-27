@@ -5,17 +5,17 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js';
-import { buildModel, buildHistory } from './model.js';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js';
-import { scoreLabel } from './score.js';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js';
-import * as store from './store.js';
-import * as ui from './ui.js';
-import { createMap } from './map.js';
-import { createSky, weatherKind, weatherSky } from './sky.js';
-import { gearAdvice, oterWeather } from './gear.js';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=c95e47cafc';
+import { buildModel, buildHistory } from './model.js?v=c95e47cafc';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=c95e47cafc';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=c95e47cafc';
+import { scoreLabel } from './score.js?v=c95e47cafc';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=c95e47cafc';
+import * as store from './store.js?v=c95e47cafc';
+import * as ui from './ui.js?v=c95e47cafc';
+import { createMap } from './map.js?v=c95e47cafc';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=c95e47cafc';
+import { gearAdvice, oterWeather } from './gear.js?v=c95e47cafc';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -985,5 +985,25 @@ rebuild();
 if (!forecast || Date.now() - forecast.fetchedAt > STALE_MS) refresh();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // Når en ny utgave tar over, lastes siden på nytt én gang. Uten dette
+  // kjørte appen på hjemskjermen gammel kode til den ble lukket helt.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('sw.js')
+      .then((reg) => {
+        // Se etter ny utgave hver gang appen kommer fram igjen, ikke bare
+        // ved oppstart: appen på hjemskjermen startes sjelden helt på nytt.
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      })
+      .catch(() => {});
+  });
 }
