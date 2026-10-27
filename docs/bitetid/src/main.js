@@ -5,17 +5,17 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=c95e47cafc';
-import { buildModel, buildHistory } from './model.js?v=c95e47cafc';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=c95e47cafc';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=c95e47cafc';
-import { scoreLabel } from './score.js?v=c95e47cafc';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=c95e47cafc';
-import * as store from './store.js?v=c95e47cafc';
-import * as ui from './ui.js?v=c95e47cafc';
-import { createMap } from './map.js?v=c95e47cafc';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=c95e47cafc';
-import { gearAdvice, oterWeather } from './gear.js?v=c95e47cafc';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=2837e4c3b2';
+import { buildModel, buildHistory } from './model.js?v=2837e4c3b2';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=2837e4c3b2';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=2837e4c3b2';
+import { scoreLabel } from './score.js?v=2837e4c3b2';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=2837e4c3b2';
+import * as store from './store.js?v=2837e4c3b2';
+import * as ui from './ui.js?v=2837e4c3b2';
+import { createMap } from './map.js?v=2837e4c3b2';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=2837e4c3b2';
+import { gearAdvice, oterWeather } from './gear.js?v=2837e4c3b2';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -45,6 +45,10 @@ let weekMode = 'fram';
 // Dagene fra værarkivet, regnet ut når Uke viser «Siste 30 dager». Heter
 // ikke «history»: det navnet tilhører nettleseren, og fanene bruker det.
 let archiveDays = null;
+/** Timen du har trykket på i en timestripe (starttid), eller null. */
+let pickedHour = null;
+/** Om «Hvorfor akkurat nå?» er åpent, så det blir stående åpent når siden oppdateres. */
+let whyOpen = false;
 
 const $ = (sel) => document.querySelector(sel);
 const persist = () => store.save(data);
@@ -264,6 +268,12 @@ function todayView() {
     </div>
   </section>
 
+  <details class="card why-card" ${whyOpen ? "open" : ""}>
+    <summary><span><strong>Hvorfor akkurat nå?</strong><span class="why-summary">${ui.esc(whySummary(h.score, h.reasons))}</span></span><span class="why-more" aria-hidden="true">Vis</span></summary>
+    ${reasonList(h.reasons)}
+    <p class="hint">Poengene starter på 30 og justeres opp eller ned av hver ting over. Lyset og lufttrykket teller mest.</p>
+  </details>
+
   <section class="card">
     <div class="card-head"><h3>Beste tider i dag</h3><span class="meta">${ui.dateLong(today.start, tz)}</span></div>
     <ul class="windows">${windows}</ul>
@@ -327,6 +337,38 @@ function todayView() {
   </section>`;
 }
 
+/** «Gode forhold fordi …, men …»: én setning som sier hvorfor tallet er som det er. */
+function whySummary(score, reasons) {
+  const pos = reasons.filter((r) => r.points > 0).map((r) => r.text.toLowerCase());
+  const neg = reasons.filter((r) => r.points < 0).map((r) => r.text.toLowerCase());
+  const list = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} og ${xs.at(-1)}`);
+  // Samme trinn som poengskiva: under 30 tregt, 30–49 middels, 50+ godt.
+  if (score >= 50) {
+    if (pos.length === 0) return 'Gode forhold uten noe som trekker ned.';
+    return `Gode forhold: ${list(pos.slice(0, 3))}.${neg.length ? ` Det som trekker ned: ${list(neg.slice(0, 2))}.` : ''}`;
+  }
+  if (score >= 30) {
+    if (pos.length === 0 && neg.length === 0) return 'Middels: ingenting spesielt som hjelper eller trekker ned.';
+    const helps = pos.length ? `${list(pos.slice(0, 2))} hjelper` : 'lite som hjelper';
+    return `Middels: ${helps}${neg.length ? `, men ${list(neg.slice(0, 2))} trekker ned` : ''}.`;
+  }
+  if (neg.length === 0) return 'Ingenting spesielt som hjelper akkurat nå. Vent på skumringen.';
+  return `Tregt: ${list(neg.slice(0, 3))}.${pos.length ? ` Det som hjelper: ${list(pos.slice(0, 2))}.` : ''}`;
+}
+
+/** Alle grunnene med poeng og forklaring. */
+function reasonList(reasons) {
+  if (reasons.length === 0) return '<p class="hint">Ingen spesielle forhold denne timen.</p>';
+  return `<ul class="why-list">${reasons
+    .map(
+      (r) => `<li class="${r.points > 0 ? 'up' : 'down'}">
+        <span class="why-points">${r.points > 0 ? '+' : '−'}${Math.abs(r.points)}</span>
+        <div><strong>${ui.esc(r.text)}</strong>${r.why ? `<p>${ui.esc(r.why)}</p>` : ''}</div>
+      </li>`,
+    )
+    .join('')}</ul>`;
+}
+
 /** Sol og måne for ett døgn, på to korte linjer. */
 function skyLine(sky, tz) {
   const sun = sky.polar
@@ -352,11 +394,12 @@ function skyLine(sky, tz) {
  * markert, og stripa starter der (se scrollStripsToNow).
  */
 function hourStrip(hours, tz, now) {
+  const picked = hours.find((h) => h.t === pickedHour);
   const cells = hours
     .map((h) => {
       const wx = describeWeather(h.code);
       const isNow = now >= h.t && now < h.t + 3_600_000;
-      return `<li class="hour ${isNow ? 'now' : ''} ${h.sunAlt < -6 ? 'dark' : ''}" ${isNow ? 'data-now' : ''}>
+      return `<li class="hour ${isNow ? 'now' : ''} ${h.sunAlt < -6 ? 'dark' : ''} ${h.t === pickedHour ? 'picked' : ''}" ${isNow ? 'data-now' : ''} data-act="hour" data-t="${h.t}" role="button" tabindex="0" aria-pressed="${h.t === pickedHour}" aria-label="Kl. ${ui.hourOnly(h.t, tz)}, ${h.score} poeng. Vis hvorfor.">
         <span class="hour-time">${isNow ? 'Nå' : ui.hourOnly(h.t, tz)}</span>
         <span class="hour-score tier-${ui.tier(h.score)}">${h.score}</span>
         ${ui.weatherIcon(wx.icon, 22)}
@@ -370,7 +413,17 @@ function hourStrip(hours, tz, now) {
   return `<div class="hour-wrap">
     <div class="hour-legend" aria-hidden="true"><span>Kl.</span><span>Poeng</span><span></span><span>°C</span><span>m/s</span><span>mm</span><span>hPa</span></div>
     <ol class="hours" aria-label="Været time for time">${cells}</ol>
-  </div>`;
+  </div>
+  ${
+    picked
+      ? `<div class="hour-why">
+          <div class="card-head"><h4>Kl. ${ui.span(picked.t, picked.t + 3_600_000, tz)} · <span class="tier-${ui.tier(picked.score)}">${picked.score} ${scoreLabel(picked.score).toLowerCase()}</span></h4>
+          <button type="button" class="icon-btn" data-act="hour" data-t="${picked.t}" aria-label="Lukk">×</button></div>
+          <p class="why-summary">${ui.esc(whySummary(picked.score, picked.reasons))}</p>
+          ${reasonList(picked.reasons)}
+        </div>`
+      : '<p class="hint">Trykk på en time for å se hvorfor den er god eller dårlig.</p>'
+  }`;
 }
 
 /** Ruller hver timestripe til timen som pågår, så du slipper å bla. */
@@ -407,6 +460,11 @@ function dayRows(days, { past, tz, now, prefix }) {
                 <p class="meta">${wx.text} · vind opptil ${ui.num(d.windMax, 0)} m/s · ${ui.num(d.precip, 1)} mm · ${phaseName(d.sky.phase).toLowerCase()}</p>
                 ${d.uncertain ? '<p class="meta">Så langt fram er varselet usikkert. Sjekk igjen nærmere dagen.</p>' : ''}
                 ${skyLine(d.sky, tz)}
+                ${(() => {
+                  // Dagens beste time sier mest om hvorfor dagen er god eller dårlig.
+                  const top = [...d.hours].sort((a, b) => b.score - a.score)[0];
+                  return top ? `<p class="why-day"><strong>Derfor:</strong> ${ui.esc(whySummary(d.score, top.reasons))}</p>` : '';
+                })()}
                 <div class="chart-wrap">${ui.dayChart(d, place, tz, now, `d${id}`)}</div>
                 <ul class="windows">${d.windows.map((w) => `<li class="window tier-${ui.tier(w.peak)}"><span class="window-time">${ui.span(w.start, w.end, tz)}</span><span class="window-score">${w.peak}</span></li>`).join('')}</ul>
                 ${hourStrip(d.hours, tz, now)}
@@ -843,6 +901,19 @@ document.addEventListener('click', async (e) => {
       openDay = openDay === el.dataset.i ? null : el.dataset.i;
       render();
       break;
+    case 'hour': {
+      const t = Number(el.dataset.t);
+      pickedHour = pickedHour === t ? null : t;
+      const strip = el.closest('.hours');
+      const scroll = strip?.scrollLeft ?? 0;
+      const y = window.scrollY;
+      render();
+      // Behold der du var: både stripa og siden skal stå stille.
+      const again = document.querySelector(`.hour[data-t="${t}"]`)?.closest('.hours');
+      if (again) again.scrollLeft = scroll;
+      window.scrollTo({ top: y });
+      break;
+    }
     case 'week-mode':
       weekMode = el.dataset.mode;
       openDay = weekMode === 'fram' ? 'f0' : null;
@@ -953,6 +1024,10 @@ document.addEventListener('submit', (e) => {
     toast(`${name} lagret`);
   }
 });
+
+document.addEventListener('toggle', (e) => {
+  if (e.target.classList?.contains('why-card')) whyOpen = e.target.open;
+}, true);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet();

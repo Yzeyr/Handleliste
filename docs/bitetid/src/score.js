@@ -21,6 +21,44 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 
 /**
+ * Hvorfor hver grunn teller, i én eller to setninger. Vises når du vil vite
+ * mer enn «+ Fallende lufttrykk»: hva som skjer i vannet, ikke bare tallet.
+ */
+export const WHY = {
+  'Rundt soloppgang':
+    'I halvlyset jakter rovfisken: småfisk og insekter er i bevegelse, og fisken ser byttet uten selv å bli sett så lett.',
+  'Rundt solnedgang':
+    'Kvelden er ofte dagens beste tid. Lyset blir svakere, insektene kommer, og fisken går inn på grunnere vann for å spise.',
+  'Nær skumring': 'Det nærmer seg halvlys. Fisken blir mer aktiv jo nærmere soloppgang eller solnedgang du kommer.',
+  Mørkt: 'De fleste arter spiser mindre i mørket. Ørret kan likevel ta i lyse sommernetter.',
+  'Stor solunar-periode':
+    'Månen står høyest eller lavest. Etter solunar-teorien er fisken mer aktiv da. Den virkningen er mindre enn lyset, men den teller litt.',
+  'Liten solunar-periode': 'Månen står opp eller går ned. Ifølge solunar-teorien gir det en kortere og svakere aktivitetstopp.',
+  Fullmåne: 'Rundt fullmåne og nymåne er tidevannskreftene størst, og mange fiskere melder om bedre bitt.',
+  Nymåne: 'Rundt nymåne og fullmåne er tidevannskreftene størst, og mange fiskere melder om bedre bitt.',
+  'Trykket faller raskt — uvær på vei':
+    'Når trykket stuper, kommer det ofte storm. Fisken kan bite rett før, men vær og sikkerhet trekker ned.',
+  'Fallende lufttrykk':
+    'Svakt fallende trykk før et værskifte er kjent for godt bitt. Fisken ser ut til å spise før været snur.',
+  'Stabilt lufttrykk': 'Stabilt vær gir jevnt og forutsigbart fiske, uten de store toppene.',
+  'Stigende lufttrykk': 'Trykket stiger etter et værskifte. Fisken blir ofte litt tregere en stund.',
+  'Trykket stiger raskt — ofte tregt etter en front':
+    'Rett etter en kaldfront, med klar himmel og raskt stigende trykk, står fisken gjerne dypt og biter dårlig.',
+  'Blikkstille, fisken er sky': 'Blankt vann gjør at fisken ser deg, båten og lina. Fisk lenger unna og med tynnere line.',
+  'Fin krusning på vannet':
+    'Litt vind bryter opp overflata så fisken blir mindre sky, og fører mat inn mot land på vindsiden.',
+  'Mye vind': 'Mye vind gjør det vanskelig å kaste, kjenne bitt og holde båten. Fisk i le hvis du kan.',
+  'Kuling — farlig i båt': 'Så mye vind er farlig i båt. Hold deg på land.',
+  'Kraftige vindkast': 'Kraftige kast kan velte en liten båt og gjør fisket urolig.',
+  'Overskyet, fisken tør mer': 'Uten sterk sol står fisken grunnere og jakter mer, også midt på dagen.',
+  'Sterk sol': 'I sterk sol trekker fisken dypere eller inn i skyggen, og blir mer sky.',
+  'Torden — hold deg unna vannet': 'Lyn treffer gjerne det høyeste punktet, og på vannet er det deg og stanga. Gå i land.',
+  'Kraftig regn': 'Mye regn gjør vannet grumsete og fisket ubehagelig, og kan få elver til å flomme.',
+  'Lett regn': 'Lett regn bryter opp overflata og vasker insekter og mark ut i vannet.',
+  'Bitende kaldt': 'I sterk kulde er fisken treg, og det er krevende å holde varmen på isen eller i båten.',
+};
+
+/**
  * @param {object} h  timen: { t, temp, wind, gust, cloud, precip, code, pressureTrend }
  *                    pressureTrend er endring i hPa siste 3 timer (null om ukjent)
  * @param {object} sky skyDay() for døgnet timen ligger i
@@ -32,7 +70,7 @@ export function hourScore(h, sky, periods, sunAlt) {
   let score = 30;
   const add = (points, text) => {
     score += points;
-    if (text) reasons.push({ points, text });
+    if (text) reasons.push({ points, text, why: WHY[text] ?? '' });
   };
 
   // Lys: nærhet til soloppgang og solnedgang.
