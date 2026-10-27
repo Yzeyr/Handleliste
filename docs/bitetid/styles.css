@@ -586,3 +586,10 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* -- bryter fram/bak i Uke */
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
+.segmented button { min-height: 40px; border: none; border-radius: 10px; background: none; font-weight: 700; color: var(--muted); }
+.segmented button[aria-pressed='true'] { background: var(--text); color: var(--bg); }
+.day.uncertain .day-row { opacity: 0.72; }
+.day.uncertain .bar span { background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 9px); }

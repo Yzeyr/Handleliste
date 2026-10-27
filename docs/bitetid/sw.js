@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-v1';
+const CACHE = 'bitetid-v2';
 const SHELL = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const SHELL = [
   './src/ui.js',
   './src/map.js',
   './src/sky.js',
+  './src/history.js',
 ];
 
 self.addEventListener('install', (event) => {

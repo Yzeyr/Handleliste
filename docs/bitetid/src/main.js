@@ -6,7 +6,8 @@
  * i sitt eget element og bygges ikke på nytt.
  */
 import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js';
-import { buildModel } from './model.js';
+import { buildModel, buildHistory } from './model.js';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js';
 import { phaseName, daysUntilPhase, sunAltitude } from './astro.js';
 import { scoreLabel } from './score.js';
 import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js';
@@ -33,11 +34,14 @@ let place = data.place ?? DEFAULT_PLACE;
 let forecast = data.forecast && samePlace(data.forecast.place, place) ? data.forecast.data : null;
 let model = null;
 let tab = TABS.some(([id]) => id === location.hash.slice(1)) ? location.hash.slice(1) : 'idag';
-let openDay = 0;
+let openDay = 'f0';
 let seasonOverride = null;
 let loading = false;
 let error = null;
 let mapView = null;
+let archive = loadArchive();
+let weekMode = 'fram';
+let history = null;
 
 const $ = (sel) => document.querySelector(sel);
 const persist = () => store.save(data);
@@ -54,8 +58,18 @@ async function refresh({ quiet = false } = {}) {
   error = null;
   if (!quiet) renderStatus();
   try {
-    forecast = await fetchForecast(place.lat, place.lon);
-    data.forecast = { place: { lat: place.lat, lon: place.lon }, data: forecast };
+    const now = Date.now();
+    const pastDays = needsBackfill(archive, place, now) ? 92 : 2;
+    forecast = await fetchForecast(place.lat, place.lon, { pastDays });
+    archive = saveArchive(mergeHistory(archive, place, forecast, now));
+    history = null;
+    // Siste kopi av varselet, til appen åpnes uten nett. Fortiden ligger i
+    // arkivet, så kopien trenger bare de siste to døgnene bakover.
+    const keepFrom = now - 2 * 86_400_000;
+    data.forecast = {
+      place: { lat: place.lat, lon: place.lon },
+      data: { ...forecast, hours: forecast.hours.filter((h) => h.t >= keepFrom), days: forecast.days.filter((d) => d.start >= keepFrom - 86_400_000) },
+    };
     persist();
   } catch (e) {
     error = navigator.onLine ? 'Fikk ikke hentet været.' : 'Uten nett.';
@@ -66,7 +80,7 @@ async function refresh({ quiet = false } = {}) {
 }
 
 function rebuild() {
-  model = forecast ? buildModel(forecast, place) : null;
+  model = forecast ? buildModel(forecast, place, Date.now(), historyHours(archive, place)) : null;
   render();
 }
 
@@ -77,6 +91,7 @@ function setPlace(next) {
   persist();
   forecast = null;
   model = null;
+  history = null;
   render();
   refresh();
   mapView?.center(place.lat, place.lon);
@@ -295,18 +310,19 @@ function todayView() {
   </section>`;
 }
 
-function weekView() {
-  if (!model) return loadingView();
-  const tz = model.timezone;
-  const now = Date.now();
-  const rows = model.days
+function dayRows(days, { past, tz, now, prefix }) {
+  return days
     .map((d, i) => {
       const wx = describeWeather(d.code);
-      const open = i === openDay;
+      const id = `${prefix}${i}`;
+      const open = id === openDay;
       const best = d.windows[0];
-      return `<li class="day ${open ? 'open' : ''}">
-        <button type="button" class="day-row" data-act="day" data-i="${i}" aria-expanded="${open}">
-          <span class="day-name">${i === 0 ? 'I dag' : i === 1 ? 'I morgen' : ui.weekday(d.start, tz)}<small>${ui.dateShort(d.start, tz)}</small></span>
+      const label = past
+        ? i === 0 ? 'I går' : ui.weekday(d.start, tz)
+        : i === 0 ? 'I dag' : i === 1 ? 'I morgen' : ui.weekday(d.start, tz);
+      return `<li class="day ${open ? 'open' : ''} ${d.uncertain ? 'uncertain' : ''}">
+        <button type="button" class="day-row" data-act="day" data-i="${id}" aria-expanded="${open}">
+          <span class="day-name">${label}<small>${ui.dateShort(d.start, tz)}${d.uncertain ? ' · usikkert' : ''}</small></span>
           <span class="day-wx">${ui.weatherIcon(wx.icon, 26)}<span>${ui.num(d.tmax, 0)}° <small>${ui.num(d.tmin, 0)}°</small></span></span>
           <span class="day-score tier-${ui.tier(d.score)}">
             <span class="bar"><span style="width:${d.score}%"></span></span>
@@ -318,7 +334,8 @@ function weekView() {
           open
             ? `<div class="day-detail">
                 <p class="meta">${wx.text} · vind opptil ${ui.num(d.windMax, 0)} m/s · ${ui.num(d.precip, 1)} mm · ${phaseName(d.sky.phase).toLowerCase()}</p>
-                <div class="chart-wrap">${ui.dayChart(d, place, tz, now, `d${i}`)}</div>
+                ${d.uncertain ? '<p class="meta">Så langt fram er varselet usikkert. Sjekk igjen nærmere dagen.</p>' : ''}
+                <div class="chart-wrap">${ui.dayChart(d, place, tz, now, `d${id}`)}</div>
                 <ul class="windows">${d.windows.map((w) => `<li class="window tier-${ui.tier(w.peak)}"><span class="window-time">${ui.span(w.start, w.end, tz)}</span><span class="window-score">${w.peak}</span></li>`).join('')}</ul>
               </div>`
             : ''
@@ -326,14 +343,43 @@ function weekView() {
       </li>`;
     })
     .join('');
-  const best = [...model.days].sort((a, b) => b.score - a.score)[0];
-  return `
+}
+
+function weekView() {
+  if (!model) return loadingView();
+  const tz = model.timezone;
+  const now = Date.now();
+  const toggle = `<div class="segmented" role="group" aria-label="Periode">
+      <button type="button" data-act="week-mode" data-mode="fram" aria-pressed="${weekMode === 'fram'}">Neste ${model.days.length} dager</button>
+      <button type="button" data-act="week-mode" data-mode="bak" aria-pressed="${weekMode === 'bak'}">Siste 30 dager</button>
+    </div>`;
+
+  if (weekMode === 'bak') {
+    history ??= buildHistory(historyHours(archive, place), place, tz, now, 30);
+    const stored = coveredDays(archive, place);
+    if (history.length === 0) {
+      return `${toggle}<section class="card empty-state"><h2>Ingen historikk ennå</h2><p>Været lagres på telefonen hver gang appen henter nytt varsel.</p></section>`;
+    }
+    const best = [...history].sort((a, b) => b.score - a.score)[0];
+    return `${toggle}
+      <section class="card week-summary">
+        <p class="eyebrow">Beste dag siste ${history.length} dager</p>
+        <h2>${ui.weekday(best.start, tz)} ${ui.dateShort(best.start, tz)}</h2>
+        <p class="next">${scoreLabel(best.score)}${best.windows[0] ? `, best ${ui.span(best.windows[0].start, best.windows[0].end, tz)}` : ''}.</p>
+      </section>
+      <ul class="days">${dayRows(history, { past: true, tz, now, prefix: 'b' })}</ul>
+      <p class="hint">Lagret vær for ${ui.esc(place.name)}: ${stored} dager. Arkivet ligger på telefonen og holder inntil ett år.</p>`;
+  }
+
+  const certain = model.days.filter((d) => !d.uncertain);
+  const best = [...certain].sort((a, b) => b.score - a.score)[0];
+  return `${toggle}
     <section class="card week-summary">
-      <p class="eyebrow">Beste dag denne uka</p>
+      <p class="eyebrow">Beste dag den neste uka</p>
       <h2>${model.days.indexOf(best) === 0 ? 'I dag' : ui.weekday(best.start, tz)}</h2>
       <p class="next">${scoreLabel(best.score)}${best.windows[0] ? `, best ${ui.span(best.windows[0].start, best.windows[0].end, tz)}` : ''}.</p>
     </section>
-    <ul class="days">${rows}</ul>
+    <ul class="days">${dayRows(model.days, { past: false, tz, now, prefix: 'f' })}</ul>
     <p class="hint">Poengene er snittet av dagens fem beste timer. Trykk på en dag for døgnkurven.</p>`;
 }
 
@@ -679,7 +725,12 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'day':
-      openDay = openDay === Number(el.dataset.i) ? -1 : Number(el.dataset.i);
+      openDay = openDay === el.dataset.i ? null : el.dataset.i;
+      render();
+      break;
+    case 'week-mode':
+      weekMode = el.dataset.mode;
+      openDay = weekMode === 'fram' ? 'f0' : null;
       render();
       break;
     case 'species':

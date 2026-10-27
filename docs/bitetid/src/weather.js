@@ -19,10 +19,14 @@ const HOURLY = [
 ];
 const DAILY = ['temperature_2m_max', 'temperature_2m_min', 'weather_code', 'precipitation_sum', 'wind_speed_10m_max'];
 
-/** Tre uker bakover: nok til et anslag på vanntemperaturen. */
-const PAST_DAYS = 21;
+/** Ti dager fram. Lenger enn det er varselet for usikkert til å fiske etter. */
+export const FORECAST_DAYS = 10;
 
-export async function fetchForecast(lat, lon, signal) {
+/**
+ * pastDays: 92 første gang for et vann (det lengste Open-Meteo gir), så
+ * arkivet får tre måneder med en gang; ellers 2, så appen bruker lite data.
+ */
+export async function fetchForecast(lat, lon, { pastDays = 2, signal } = {}) {
   const params = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
@@ -31,8 +35,8 @@ export async function fetchForecast(lat, lon, signal) {
     wind_speed_unit: 'ms',
     timezone: 'auto',
     timeformat: 'unixtime',
-    past_days: String(PAST_DAYS),
-    forecast_days: '7',
+    past_days: String(pastDays),
+    forecast_days: String(FORECAST_DAYS),
   });
   const res = await fetch(`${FORECAST}?${params}`, { signal });
   if (!res.ok) throw new Error(`Værtjenesten svarte ${res.status}`);
@@ -80,6 +84,29 @@ export function parseForecast(json) {
  * ukene (nyeste teller mest), pluss et sesongtillegg. Det er godt nok til å
  * skille «kaldt vår-vann» fra «varmt sommervann», ikke til mer.
  */
+/**
+ * Døgn med høyeste og laveste temperatur, laget av timene. Brukes for
+ * arkivet, der Open-Meteo ikke har levert døgnverdier.
+ */
+export function dailyFromHours(hours, timezone) {
+  const key = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const days = new Map();
+  for (const h of hours) {
+    if (h.temp == null) continue;
+    const k = key.format(h.t);
+    const d = days.get(k) ?? { start: h.t, tmax: -Infinity, tmin: Infinity, precip: 0, code: 0, windMax: 0, hours: [] };
+    d.start = Math.min(d.start, h.t);
+    d.tmax = Math.max(d.tmax, h.temp);
+    d.tmin = Math.min(d.tmin, h.temp);
+    d.precip += h.precip ?? 0;
+    d.code = Math.max(d.code, h.code ?? 0);
+    d.windMax = Math.max(d.windMax, h.wind ?? 0);
+    d.hours.push(h);
+    days.set(k, d);
+  }
+  return [...days.values()].sort((a, b) => a.start - b.start);
+}
+
 export function estimateWaterTemp(days, now) {
   const past = days.filter((d) => d.start <= now && d.tmax != null && d.tmin != null);
   if (past.length === 0) return null;
