@@ -158,9 +158,22 @@ export function researchScore(h, sky, sunAlt, ctx = {}) {
   if (h.code >= 95) warnings.push({ text: 'Torden — hold deg unna vannet', why: 'Lyn treffer gjerne det høyeste punktet, og på vannet er det deg og stanga. Gå i land.' });
   if (h.temp < -15) warnings.push({ text: 'Bitende kaldt', why: 'Kle deg godt og pass på fingre og føtter, særlig på isen.' });
 
+  // Samme skala som erfaringsmodellen: de beste forholdene modellen kan gi,
+  // blir 100. Uten dette stoppet den på 76, og så alltid «dårligere» ut.
+  // Grunnenes poeng skaleres likt, så de fortsatt forklarer tallet.
+  const k = 100 / RAW_MAX;
   return {
-    score: Math.max(0, Math.min(100, Math.round(score))),
-    reasons: reasons.sort((a, b) => Math.abs(b.points) - Math.abs(a.points)),
+    score: Math.max(0, Math.min(100, Math.round(score * k))),
+    reasons: reasons
+      .map((r) => ({ ...r, points: Math.round(r.points * k) || Math.sign(r.points) }))
+      .sort((a, b) => Math.abs(b.points) - Math.abs(a.points)),
     warnings,
   };
 }
+
+/**
+ * Høyeste råsum modellen kan gi: start 30, halvlys 20, vanntemperatur ved
+ * artens beste 10, krusning 6, fallende trykk 3, overskyet i halvlys 3,
+ * ny- eller fullmåne 2 og lett regn 2. En test sjekker at dette stemmer.
+ */
+export const RAW_MAX = 76;
