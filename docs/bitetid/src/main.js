@@ -15,6 +15,7 @@ import * as store from './store.js';
 import * as ui from './ui.js';
 import { createMap } from './map.js';
 import { createSky, weatherKind, weatherSky } from './sky.js';
+import { gearAdvice, oterWeather } from './gear.js';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -308,7 +309,19 @@ function todayView() {
     <div class="card-head"><h3>${species.name} nå</h3><span class="meta">${SEASONS[season].name}</span></div>
     <p>${ui.esc(advice.where)}</p>
     <p class="depth"><span>Dybde</span> ${ui.esc(advice.depth)}</p>
-    <button type="button" class="btn ghost" data-act="tab" data-tab="fisk">Mer om ${species.name.toLowerCase()} og andre arter</button>
+    ${(() => {
+      const ctx = { season, waterTemp: model.waterTemp, speciesId: species.id, water: species.water === 'elv' ? 'elv' : 'innsjo' };
+      const month = Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(now));
+      if (species.openMonths && !species.openMonths.includes(month)) {
+        return '<p class="depth"><span>Redskap</span> Sesongen er normalt stengt nå</p>';
+      }
+      const best = gearAdvice(h, ctx)[0];
+      const oter = ctx.water === 'elv' ? null : oterWeather(h, season);
+      return best
+        ? `<p class="depth"><span>Redskap</span> ${ui.esc(best.name)}${oter?.good ? ' <span class="oter-badge good">Otervær</span>' : ''}</p>`
+        : '';
+    })()}
+    <button type="button" class="btn ghost" data-act="tab" data-tab="fisk">Redskap, dybde og agn for alle arter</button>
   </section>`;
 }
 
@@ -441,6 +454,39 @@ function weekView() {
     <p class="hint">Poengene er snittet av dagens fem beste timer. Trykk på en dag for døgnkurven.</p>`;
 }
 
+/**
+ * «Redskap nå»: de tre beste metodene akkurat nå, med grunnene, og om det er
+ * otervær. Bygger på gear.js, som ser på vær, årstid, art og vanntype.
+ */
+function gearCard(hour, ctx, species, month) {
+  if (species.openMonths && !species.openMonths.includes(month)) {
+    return `<section class="card gear-card">
+      <div class="card-head"><h3>Redskap nå</h3><span class="oter-badge">Stengt</span></div>
+      <p>Fisket etter ${species.name.toLowerCase()} i elv er normalt stengt nå. Sesongen er vanligvis juni–august, i noen elver litt ut i september.</p>
+      <p class="hint">Fisketidene settes hvert år. Sjekk reglene for elva under «Før du drar».</p>
+    </section>`;
+  }
+  const list = gearAdvice(hour, ctx).slice(0, 3);
+  // Uten værdata vet vi ikke om det er otervær, og da sier vi ingenting.
+  const oter = ctx.water === 'elv' || !hour ? null : oterWeather(hour, ctx.season);
+  const items = list
+    .map(
+      (g, i) => `<li class="gear ${i === 0 ? 'gear-first' : ''}">
+        <div class="gear-head"><strong>${ui.esc(g.name)}</strong><span class="gear-score tier-${ui.tier(g.score)}">${g.score}</span></div>
+        <span class="bar tier-${ui.tier(g.score)}"><span style="width:${g.score}%"></span></span>
+        ${g.reasons.length ? `<p class="gear-why">${g.reasons.map(ui.esc).join(' · ')}</p>` : ''}
+      </li>`,
+    )
+    .join('');
+  return `<section class="card gear-card">
+    <div class="card-head"><h3>Redskap nå</h3>${
+      oter ? `<span class="oter-badge ${oter.good ? 'good' : ''}">${ui.esc(oter.label)}</span>` : ''
+    }</div>
+    <ol class="gear-list">${items}</ol>
+    ${oter ? `<p class="hint">${ui.esc(oter.text)}</p>` : ''}
+  </section>`;
+}
+
 function fishView() {
   const tz = model?.timezone ?? 'Europe/Oslo';
   const month = Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(Date.now()));
@@ -450,8 +496,10 @@ function fishView() {
   const advice = species.seasons[season];
   const tips = conditionTips(model?.now, season);
 
+  const river = species.water === 'elv';
   const speciesChips = SPECIES.map(
-    (s) => `<button type="button" class="chip ${s.id === species.id ? 'on' : ''}" data-act="species" data-id="${s.id}" aria-pressed="${s.id === species.id}">${s.name}</button>`,
+    (s) =>
+      `<button type="button" class="chip ${s.id === species.id ? 'on' : ''}" data-act="species" data-id="${s.id}" aria-pressed="${s.id === species.id}">${s.name}${s.water === 'elv' ? '<small class="chip-tag">elv</small>' : ''}</button>`,
   ).join('');
   const seasonChips = Object.entries(SEASONS)
     .map(
@@ -469,13 +517,16 @@ function fishView() {
 
     <div class="chips" role="group" aria-label="Art">${speciesChips}</div>
 
+    ${gearCard(model?.now ?? null, { season, waterTemp: model?.waterTemp ?? null, speciesId: species.id, water: river ? 'elv' : 'innsjo' }, species, month)}
+
     <section class="card species-card">
       <div class="species-head">
         <span class="species-icon" aria-hidden="true">${ui.tabIcon('fisk')}</span>
-        <div><h2>${species.name}</h2><p class="latin">${species.latin}</p></div>
+        <div><h2>${species.name}${river ? ' <span class="water-tag">Elv</span>' : ''}</h2><p class="latin">${species.latin}</p></div>
       </div>
       <p class="blurb">${species.blurb}</p>
       ${species.presence ? `<p class="presence">${species.presence}</p>` : ''}
+      ${river ? '<p class="presence">I elv betyr vannføring og vanntemperatur mer enn bitepoengene, som er laget for innsjøer. Sjekk vannføringen før du drar.</p>' : ''}
       <div class="chips season-chips" role="group" aria-label="Årstid">${seasonChips}</div>
       <dl class="advice">
         <dt>Hvor</dt><dd>${advice.where}</dd>
@@ -485,6 +536,7 @@ function fishView() {
         <dt>Utstyr</dt><dd>${species.gear}</dd>
       </dl>
       ${season !== autoSeason ? `<p class="hint">Viser ${SEASONS[season].name.toLowerCase()}. Punktet markerer årstiden nå.</p>` : ''}
+      ${species.rules ? `<p class="rules"><strong>Regler.</strong> ${species.rules}</p>` : ''}
     </section>
 
     ${
@@ -495,6 +547,9 @@ function fishView() {
 
     <section class="card links">
       <h3>Før du drar</h3>
+      ${(species.links ?? [])
+        .map((l) => `<a class="link-row" href="${ui.esc(l.href)}" target="_blank" rel="noopener">${ui.esc(l.label)} <span aria-hidden="true">↗</span></a>`)
+        .join('')}
       <a class="link-row" href="https://www.inatur.no/fiske" target="_blank" rel="noopener">Fiskekort og regler for vannet <span aria-hidden="true">↗</span></a>
       <a class="link-row" href="https://atlas.nve.no/" target="_blank" rel="noopener">Dybdekart over innsjøer (NVE Atlas) <span aria-hidden="true">↗</span></a>
       <a class="link-row" href="https://www.yr.no/nb/s%C3%B8k?q=${encodeURIComponent(place.name)}" target="_blank" rel="noopener">Været for ${ui.esc(place.name)} på yr <span aria-hidden="true">↗</span></a>

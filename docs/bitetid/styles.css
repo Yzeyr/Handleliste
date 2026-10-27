@@ -641,3 +641,21 @@ p { margin: 0; }
 .hour-rain { color: var(--muted); }
 .hour-rain.wet { color: var(--water); font-weight: 700; }
 .hour-pres { font-family: var(--mono); color: var(--muted); font-size: 0.68rem; }
+
+/* -- redskap nå */
+.gear-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.gear { display: flex; flex-direction: column; gap: 6px; }
+.gear-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.gear-first .gear-head strong { font-family: var(--display); font-size: 1.25rem; }
+.gear-score { font-family: var(--mono); font-weight: 600; }
+.gear .bar { flex: none; width: 100%; }
+.gear-why { font-size: 0.85rem; color: var(--muted); }
+.oter-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+  background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);
+}
+.oter-badge.good { background: color-mix(in srgb, var(--water) 16%, var(--surface)); color: var(--water); border-color: color-mix(in srgb, var(--water) 40%, transparent); }
+.chip-tag { font-size: 0.7em; font-weight: 700; margin-left: 5px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; }
+.water-tag { font-family: var(--body); font-size: 0.75rem; font-weight: 700; vertical-align: middle; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--water) 16%, var(--surface)); color: var(--water); }
+.rules { font-size: 0.9rem; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
