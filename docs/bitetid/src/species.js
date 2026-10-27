@@ -21,9 +21,22 @@ export const SEASONS = {
 };
 
 /** Årstid for fisken, ikke for kalenderen: et kaldt vann i mai er fortsatt vår. */
-export function fishSeason(month, waterTemp) {
+/** Fra denne høyden regnes et vann som fjellvann: isen går senere og kommer tidligere. */
+export const MOUNTAIN_M = 400;
+
+export function fishSeason(month, waterTemp, heightM = null) {
   const w = waterTemp ?? 8;
+  const mountain = heightM != null && heightM >= MOUNTAIN_M;
   if (month === 12 || month <= 3) return 'vinter';
+  // Nesten 0 °C i vannet utenom høysommeren betyr som regel is.
+  if (w < 2 && month !== 7 && month !== 8) return 'vinter';
+  if (mountain) {
+    // Fjellvann: isen går ofte først i slutten av mai eller i juni, og
+    // legger seg igjen i oktober–november.
+    if (month === 4 || month === 5) return w < 4 ? 'vinter' : 'vaar';
+    if (month === 6) return w < 4 ? 'vinter' : w < 10 ? 'vaar' : 'forsommer';
+    if (month === 10 || month === 11) return w < 3 ? 'vinter' : 'host';
+  }
   if (month === 11 || month === 4) return w < 3 ? 'vinter' : month === 4 ? 'vaar' : 'host';
   if (month === 5) return w > 12 ? 'forsommer' : 'vaar';
   if (month === 6) return w < 10 ? 'vaar' : 'forsommer';

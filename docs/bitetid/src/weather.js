@@ -76,7 +76,9 @@ export function parseForecast(json) {
     windMax: d.wind_speed_10m_max[i] ?? 0,
   }));
 
-  return { timezone: json.timezone, fetchedAt: Date.now(), hours, days };
+  // elevation: høyden værmodellen regner for (Open-Meteo bruker terrenghøyden
+  // i punktet), så appen vet om det er et fjellvann også uten NVE.
+  return { timezone: json.timezone, elevation: json.elevation ?? null, fetchedAt: Date.now(), hours, days };
 }
 
 /**
@@ -225,6 +227,21 @@ export function spellings(query) {
   return out;
 }
 
+/**
+ * Kommuner med samisk og norsk navn står som «Namsos - Nåavmesjenjaelmie»,
+ * men noen med det samiske først («Raarvihke - Røyrvik»). I en kort linje
+ * holder det norske; disse er de samiske navnene vi hopper over.
+ */
+const SAMI_NAMES = new Set([
+  'Nåavmesjenjaelmie', 'Raarvihke', 'Snåase', 'Lijre', 'Plassje', 'Aarborte', 'Hïerjedaelie',
+  'Guovdageaidnu', 'Kárášjohka', 'Unjárga', 'Deatnu', 'Porsáŋgu', 'Gáivuotna', 'Loabát',
+  'Dielddanuorri', 'Hábmer', 'Evenášši', 'Báhccavuotna', 'Omasvuotna', 'Råvhtoe',
+]);
+export function norwegianName(kommunenavn) {
+  const parts = kommunenavn.split(' - ').map((p) => p.trim());
+  return parts.find((p) => !SAMI_NAMES.has(p)) ?? parts[0];
+}
+
 /** Ren funksjon for Kartverkets svar, så den kan testes uten nett. */
 export function parseKartverket(json) {
   return (json.navn ?? [])
@@ -233,7 +250,7 @@ export function parseKartverket(json) {
     .map((n) => {
       // «Namsos - Nåavmesjenjaelmie»: det samiske navnet står i registeret
       // etter en strek. I en kort linje holder det norske.
-      const kommuner = (n.kommuner ?? []).map((k) => k.kommunenavn.split(' - ')[0]);
+      const kommuner = (n.kommuner ?? []).map((k) => norwegianName(k.kommunenavn));
       return {
         name: n.stedsnavn[0].skrivemåte,
         detail: [n.navneobjekttype, kommuner.slice(0, 3).join(', ') + (kommuner.length > 3 ? ' m.fl.' : '')]

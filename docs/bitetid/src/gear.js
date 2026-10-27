@@ -99,6 +99,8 @@ export function gearAdvice(hour, ctx) {
   const wt = ctx?.waterTemp ?? null;
   const thunder = hour ? hour.code >= 95 : false;
 
+  const mountain = ctx?.mountain === true;
+
   const out = [];
   for (const id of ORDER) {
     const base = BASE[id][season];
@@ -114,6 +116,10 @@ export function gearAdvice(hour, ctx) {
     weather(id, hour, season, river, add);
     water(id, wt, add);
     nudge(id, species, season, river, add);
+    // Fjellvann: oter er et klassisk fjellvannsredskap, og flue på
+    // vakende fisk i stille kvelder er typisk etter isgangen.
+    if (mountain && id === 'oter') add(6, 'Klassisk i fjellvann');
+    if (mountain && id === 'flue' && (season === 'vaar' || season === 'forsommer')) add(4, 'Fjellvann etter isgang: flue på vak');
 
     let score = base + adj.reduce((sum, a) => sum + a.points, 0);
     if (thunder) score = Math.min(score - 50, 25);

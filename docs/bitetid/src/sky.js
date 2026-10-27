@@ -6,7 +6,7 @@
  * skyer som driver med vinden, regn som faller skrått i vinden, snø, tåke og
  * lyn. Står telefonen på «reduser bevegelse», tegnes ett stillbilde.
  */
-import { skyColors } from './ui.js?v=c3125679f8';
+import { skyColors } from './ui.js?v=3546145457';
 
 export function weatherKind(code, cloud) {
   if (code >= 95) return 'torden';

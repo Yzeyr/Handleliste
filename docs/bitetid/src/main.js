@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=c3125679f8';
-import { buildModel, buildHistory, MODELS } from './model.js?v=c3125679f8';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=c3125679f8';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=c3125679f8';
-import { scoreLabel } from './score.js?v=c3125679f8';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=c3125679f8';
-import * as store from './store.js?v=c3125679f8';
-import * as ui from './ui.js?v=c3125679f8';
-import { createMap } from './map.js?v=c3125679f8';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=c3125679f8';
-import { gearAdvice, oterWeather } from './gear.js?v=c3125679f8';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=c3125679f8';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=c3125679f8';
-import { badConditionTips, windSpot } from './tips.js?v=c3125679f8';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=3546145457';
+import { buildModel, buildHistory, MODELS } from './model.js?v=3546145457';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=3546145457';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=3546145457';
+import { scoreLabel } from './score.js?v=3546145457';
+import { SPECIES, SEASONS, fishSeason, conditionTips, MOUNTAIN_M } from './species.js?v=3546145457';
+import * as store from './store.js?v=3546145457';
+import * as ui from './ui.js?v=3546145457';
+import { createMap } from './map.js?v=3546145457';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=3546145457';
+import { gearAdvice, oterWeather } from './gear.js?v=3546145457';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=3546145457';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=3546145457';
+import { badConditionTips, windSpot } from './tips.js?v=3546145457';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -336,7 +336,7 @@ function todayView() {
   const today = model.days[0];
   const wx = describeWeather(h.code);
   const species = SPECIES.find((s) => s.id === data.species);
-  const season = fishSeason(Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(now)), model.waterTemp);
+  const season = fishSeason(Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(now)), model.waterTemp, lakeHeight());
   const advice = species.seasons[season];
 
   const reasons = h.reasons
@@ -448,7 +448,13 @@ function todayView() {
     <p class="depth"><span>Dybde</span> ${ui.esc(advice.depth)}</p>
     ${species.water === 'elv' ? '' : spotLine(h)}
     ${(() => {
-      const ctx = { season, waterTemp: model.waterTemp, speciesId: species.id, water: species.water === 'elv' ? 'elv' : 'innsjo' };
+      const ctx = {
+        season,
+        waterTemp: model.waterTemp,
+        speciesId: species.id,
+        water: species.water === 'elv' ? 'elv' : 'innsjo',
+        mountain: (lakeHeight() ?? 0) >= MOUNTAIN_M,
+      };
       const month = Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(now));
       if (species.openMonths && !species.openMonths.includes(month)) {
         return '<p class="depth"><span>Redskap</span> Sesongen er normalt stengt nå</p>';
@@ -516,7 +522,15 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=c3125679f8').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=3546145457').catch(() => null));
+
+/**
+ * Høyden over havet for vannet: fra NVE når vi har den, ellers høyden
+ * værmodellen regner for i punktet. Brukes til å kjenne igjen fjellvann.
+ */
+function lakeHeight() {
+  return data.lakeInfo?.[lakeKey(place)]?.nve?.heightM ?? forecast?.elevation ?? null;
+}
 
 /** Fangster innenfor 2 km fra vannet, så kortet kan si «3 fangster her». */
 function catchesHere() {
@@ -533,7 +547,7 @@ function lakeCard() {
   const here = catchesHere();
   const facts = [
     nve?.areaKm2 != null ? ['Areal', `${ui.num(nve.areaKm2, nve.areaKm2 < 1 ? 2 : 1)} km²`] : null,
-    nve?.heightM != null ? ['Høyde over havet', `${ui.num(nve.heightM, 0)} moh.`] : null,
+    nve?.heightM != null ? ['Høyde over havet', `${ui.num(nve.heightM, 0)} moh.${nve.heightM >= MOUNTAIN_M ? ' · fjellvann' : ''}`] : null,
     nve?.depthMaxM != null ? ['Største dybde', `${ui.num(nve.depthMaxM, 0)} m`] : null,
     nve?.depthMeanM != null ? ['Snittdybde', `${ui.num(nve.depthMeanM, 0)} m`] : null,
     nve?.vassdrag ? ['Vassdrag', ui.esc(nve.vassdrag)] : null,
@@ -878,7 +892,9 @@ function gearCard(hour, ctx, species, month) {
 function fishView() {
   const tz = model?.timezone ?? 'Europe/Oslo';
   const month = Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(Date.now()));
-  const autoSeason = fishSeason(month, model?.waterTemp);
+  const height = lakeHeight();
+  const mountain = height != null && height >= MOUNTAIN_M;
+  const autoSeason = fishSeason(month, model?.waterTemp, height);
   const season = seasonOverride ?? autoSeason;
   const species = SPECIES.find((s) => s.id === data.species);
   const advice = species.seasons[season];
@@ -900,12 +916,13 @@ function fishView() {
     <section class="card season-card">
       <p class="eyebrow">Fisken nå</p>
       <h2>${SEASONS[autoSeason].name}</h2>
+      ${mountain ? `<p class="mountain-tag">Fjellvann · ${ui.num(height, 0)} moh. Isen går senere og legger seg tidligere enn i lavlandet, og ørret og røye er hovedartene.</p>` : ''}
       <p class="next">${model?.waterTemp != null ? `Vannet er rundt ${ui.num(model.waterTemp, 0)} °C (grovt anslag fra lufttemperaturen).` : 'Henter vær for å anslå vanntemperaturen.'}</p>
     </section>
 
     <div class="chips" role="group" aria-label="Art">${speciesChips}</div>
 
-    ${gearCard(model?.now ?? null, { season, waterTemp: model?.waterTemp ?? null, speciesId: species.id, water: river ? 'elv' : 'innsjo' }, species, month)}
+    ${gearCard(model?.now ?? null, { season, waterTemp: model?.waterTemp ?? null, speciesId: species.id, water: river ? 'elv' : 'innsjo', mountain }, species, month)}
 
     <section class="card species-card">
       <div class="species-head">

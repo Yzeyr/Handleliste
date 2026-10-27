@@ -5,7 +5,7 @@
  *
  * Knappene i boblene har data-act, og fanges av appens felles klikk-lytter.
  */
-import { esc } from './ui.js?v=c3125679f8';
+import { esc } from './ui.js?v=3546145457';
 
 export function createMap(el, { onPick }) {
   const L = window.L;
