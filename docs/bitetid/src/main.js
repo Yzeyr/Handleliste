@@ -8,7 +8,7 @@
 import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js';
 import { buildModel, buildHistory } from './model.js';
 import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js';
-import { phaseName, daysUntilPhase, sunAltitude } from './astro.js';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js';
 import { scoreLabel } from './score.js';
 import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js';
 import * as store from './store.js';
@@ -154,6 +154,7 @@ function render() {
   mapEl.hidden = true;
   view.hidden = false;
   view.innerHTML = VIEWS[tab]();
+  scrollStripsToNow();
 }
 
 function ensureMap() {
@@ -270,6 +271,7 @@ function todayView() {
       <li><span class="key key-minor"></span>Måne opp/ned</li>
       <li><span class="key key-night"></span>Mørkt</li>
     </ul>
+    ${hourStrip(today.hours, tz, now)}
   </section>
 
   <section class="card">
@@ -310,6 +312,60 @@ function todayView() {
   </section>`;
 }
 
+/** Sol og måne for ett døgn, på to korte linjer. */
+function skyLine(sky, tz) {
+  const sun = sky.polar
+    ? sky.polar === 'mørketid' ? 'Mørketid, sola står ikke opp' : 'Midnattssol, sola går ikke ned'
+    : `Sol opp ${ui.time(sky.sunrise, tz)}, ned ${ui.time(sky.sunset, tz)}`;
+  const moonTimes = [
+    sky.moonrise !== null ? `opp ${ui.time(sky.moonrise, tz)}` : null,
+    sky.moonset !== null ? `ned ${ui.time(sky.moonset, tz)}` : null,
+  ].filter(Boolean);
+  // Langt nord kan månen stå over (eller under) horisonten hele døgnet.
+  if (moonTimes.length === 0) {
+    moonTimes.push(moonAltitude(sky.noon, place.lat, place.lon) > 0 ? 'oppe hele døgnet' : 'under horisonten hele døgnet');
+  }
+  return `<div class="sky-line">
+    <span>${sun}</span>
+    <span class="sky-moon">${ui.moonDisc(sky.phase, 18)} ${phaseName(sky.phase)}, ${Math.round(sky.fraction * 100)} % · måne ${moonTimes.join(', ')}</span>
+  </div>`;
+}
+
+/**
+ * Været time for time som en stripe du blar sidelengs i. Hver time viser
+ * poeng, vær, temperatur, vind, nedbør og lufttrykk. Timen som pågår, er
+ * markert, og stripa starter der (se scrollStripsToNow).
+ */
+function hourStrip(hours, tz, now) {
+  const cells = hours
+    .map((h) => {
+      const wx = describeWeather(h.code);
+      const isNow = now >= h.t && now < h.t + 3_600_000;
+      return `<li class="hour ${isNow ? 'now' : ''} ${h.sunAlt < -6 ? 'dark' : ''}" ${isNow ? 'data-now' : ''}>
+        <span class="hour-time">${isNow ? 'Nå' : ui.hourOnly(h.t, tz)}</span>
+        <span class="hour-score tier-${ui.tier(h.score)}">${h.score}</span>
+        ${ui.weatherIcon(wx.icon, 22)}
+        <span class="hour-temp">${ui.num(h.temp, 0)}°</span>
+        <span class="hour-wind">${ui.windArrow(h.windDir, 13)}${ui.num(h.wind, 0)}</span>
+        <span class="hour-rain ${h.precip >= 0.1 ? 'wet' : ''}">${h.precip >= 0.1 ? ui.num(h.precip, 1) : '–'}</span>
+        <span class="hour-pres">${h.pressure == null ? '–' : Math.round(h.pressure)}</span>
+      </li>`;
+    })
+    .join('');
+  return `<div class="hour-wrap">
+    <div class="hour-legend" aria-hidden="true"><span>Kl.</span><span>Poeng</span><span></span><span>°C</span><span>m/s</span><span>mm</span><span>hPa</span></div>
+    <ol class="hours" aria-label="Været time for time">${cells}</ol>
+  </div>`;
+}
+
+/** Ruller hver timestripe til timen som pågår, så du slipper å bla. */
+function scrollStripsToNow() {
+  for (const strip of document.querySelectorAll('.hours')) {
+    const cell = strip.querySelector('[data-now]');
+    if (cell) strip.scrollLeft = Math.max(0, cell.offsetLeft - strip.offsetLeft - 8);
+  }
+}
+
 function dayRows(days, { past, tz, now, prefix }) {
   return days
     .map((d, i) => {
@@ -335,8 +391,10 @@ function dayRows(days, { past, tz, now, prefix }) {
             ? `<div class="day-detail">
                 <p class="meta">${wx.text} · vind opptil ${ui.num(d.windMax, 0)} m/s · ${ui.num(d.precip, 1)} mm · ${phaseName(d.sky.phase).toLowerCase()}</p>
                 ${d.uncertain ? '<p class="meta">Så langt fram er varselet usikkert. Sjekk igjen nærmere dagen.</p>' : ''}
+                ${skyLine(d.sky, tz)}
                 <div class="chart-wrap">${ui.dayChart(d, place, tz, now, `d${id}`)}</div>
                 <ul class="windows">${d.windows.map((w) => `<li class="window tier-${ui.tier(w.peak)}"><span class="window-time">${ui.span(w.start, w.end, tz)}</span><span class="window-score">${w.peak}</span></li>`).join('')}</ul>
+                ${hourStrip(d.hours, tz, now)}
               </div>`
             : ''
         }

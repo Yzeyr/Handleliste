@@ -593,3 +593,51 @@ p { margin: 0; }
 .segmented button[aria-pressed='true'] { background: var(--text); color: var(--bg); }
 .day.uncertain .day-row { opacity: 0.72; }
 .day.uncertain .bar span { background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 9px); }
+
+/* -- dagdetaljer: sol og måne, og været time for time */
+.sky-line { display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; color: var(--muted); }
+.sky-moon { display: inline-flex; align-items: center; gap: 6px; }
+.sky-moon .moon { flex: none; }
+
+.hour-wrap { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.hour-legend, .hour {
+  display: grid;
+  grid-template-rows: 18px 24px 24px 18px 18px 18px 18px;
+  align-items: center;
+  justify-items: center;
+  row-gap: 4px;
+  font-size: 0.75rem;
+}
+.hour-legend { flex: none; justify-items: start; color: var(--muted); padding: 8px 0; font-size: 0.68rem; }
+.hours {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  min-width: 0;
+  flex: 1;
+}
+.hour {
+  flex: none;
+  width: 52px;
+  padding: 8px 0;
+  border-radius: 12px;
+  background: var(--surface);
+  scroll-snap-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.hour.dark { background: color-mix(in srgb, var(--trees-back) 10%, var(--surface)); }
+.hour.now { outline: 2px solid var(--ember); outline-offset: -2px; }
+.hour-time { font-family: var(--mono); color: var(--muted); }
+.hour.now .hour-time { color: var(--ember); font-weight: 700; font-family: var(--body); }
+.hour-score { font-family: var(--mono); font-weight: 600; font-size: 0.8rem; min-width: 30px; height: 22px; display: grid; place-items: center; border-radius: 999px; background: color-mix(in srgb, currentColor 14%, transparent); }
+.hour .wx { color: var(--water); }
+.hour-temp { font-weight: 700; font-size: 0.85rem; }
+.hour-wind { display: inline-flex; align-items: center; gap: 1px; }
+.hour-rain { color: var(--muted); }
+.hour-rain.wet { color: var(--water); font-weight: 700; }
+.hour-pres { font-family: var(--mono); color: var(--muted); font-size: 0.68rem; }

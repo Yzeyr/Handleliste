@@ -183,6 +183,7 @@ export function skyDay(dayStart, lat, lon) {
     moonUnderfoot: transits.lows,
     phase: illum.phase,
     fraction: illum.fraction,
+    noon: dayStart + DAY_MS / 2,
   };
 }
 
