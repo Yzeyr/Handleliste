@@ -47,6 +47,10 @@ export const WHY = {
   'Blikkstille, fisken er sky': 'Blankt vann gjør at fisken ser deg, båten og lina. Fisk lenger unna og med tynnere line.',
   'Fin krusning på vannet':
     'Litt vind bryter opp overflata så fisken blir mindre sky, og fører mat inn mot land på vindsiden.',
+  Nordavind:
+    'Nordavind fører kald luft, ofte rett etter en kaldfront. Fisken trekker gjerne dypere og biter dårlig, særlig et par dager etter fronten.',
+  'Kaldt vindskifte':
+    'Det har blitt minst 2 grader kaldere de siste seks timene samtidig som vinden har gått i nord. Et brått temperaturfall gjør fisken treg.',
   'Vind driver mat mot land':
     'Vinden fører plankton, insekter og småfisk inn mot land der den blåser. Fisken følger etter, så kast mot vindsiden.',
   'Overskyet, fisken tør mer': 'Uten sterk sol står fisken grunnere og jakter mer, også midt på dagen.',
@@ -132,6 +136,14 @@ export function hourScore(h, sky, periods, sunAlt) {
   if (h.wind < 1) add(-2, 'Blikkstille, fisken er sky');
   else if (h.wind < 6) add(8, 'Fin krusning på vannet');
   else add(4, 'Vind driver mat mot land');
+  // Nordavind: kald luft, ofte rett etter en kaldfront. Det er kulden og
+  // fronten som gjør fisken treg, ikke vindretningen i seg selv, men
+  // nordavinden er et godt tegn på dem. I stille vær betyr retningen ingenting.
+  const dir = ((h.windDir ?? 0) % 360 + 360) % 360;
+  if (h.wind >= 2 && (dir >= 315 || dir <= 45)) {
+    add(-6, 'Nordavind');
+    if (h.tempTrend != null && h.tempTrend <= -2) add(-4, 'Kaldt vindskifte');
+  }
   if (h.wind >= 14) warn('Kuling — farlig i båt');
   else if (h.wind >= 10) warn('Mye vind');
   if (h.gust >= 18) warn('Kraftige vindkast');

@@ -75,6 +75,10 @@ export function historyHours(archive, place) {
     const contiguous = before && hours[i].t - before.t === 3 * HOUR;
     hours[i].pressureTrend =
       contiguous && before.pressure != null && hours[i].pressure != null ? hours[i].pressure - before.pressure : null;
+    const sixBefore = hours[i - 6];
+    const sixContiguous = sixBefore && hours[i].t - sixBefore.t === 6 * HOUR;
+    hours[i].tempTrend =
+      sixContiguous && sixBefore.temp != null && hours[i].temp != null ? hours[i].temp - sixBefore.temp : null;
   }
   return hours;
 }

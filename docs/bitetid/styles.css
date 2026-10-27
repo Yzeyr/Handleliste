@@ -717,3 +717,16 @@ p { margin: 0; }
 .nb-tag { font-family: var(--mono); font-weight: 700; font-size: 0.8rem; text-align: center; padding: 3px 0; border-radius: 8px; color: var(--ember); background: color-mix(in srgb, var(--ember) 14%, transparent); }
 .hour-time { position: relative; }
 .hour-nb { position: absolute; top: -6px; right: -12px; width: 14px; height: 14px; border-radius: 999px; background: var(--ember); color: #fff; font-style: normal; font-size: 10px; font-weight: 800; line-height: 14px; text-align: center; font-family: var(--body); }
+
+/* -- om vannet */
+.lake-facts dd { font-family: var(--body); font-weight: 600; }
+.wiki { margin: 0; padding: 12px 14px; border-left: 3px solid var(--water); background: var(--surface-2); border-radius: 0 12px 12px 0; font-size: 0.92rem; display: flex; flex-direction: column; gap: 8px; }
+.wiki a { color: var(--water); font-weight: 700; text-decoration: none; }
+.lake-catches { font-size: 0.92rem; }
+.lake-note textarea { width: 100%; min-height: 72px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; resize: vertical; }
+
+/* -- slik får du fisk likevel */
+.tips-box { display: flex; flex-direction: column; gap: 8px; }
+.tips-box h4 { margin: 0; font-family: var(--display); font-size: 1.05rem; }
+.tips-box ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
+.tips-box strong { color: var(--water); }

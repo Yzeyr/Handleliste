@@ -5,19 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=4783c5f96f';
-import { buildModel, buildHistory } from './model.js?v=4783c5f96f';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=4783c5f96f';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=4783c5f96f';
-import { scoreLabel } from './score.js?v=4783c5f96f';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=4783c5f96f';
-import * as store from './store.js?v=4783c5f96f';
-import * as ui from './ui.js?v=4783c5f96f';
-import { createMap } from './map.js?v=4783c5f96f';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=4783c5f96f';
-import { gearAdvice, oterWeather } from './gear.js?v=4783c5f96f';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=4783c5f96f';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=4783c5f96f';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=800adfd8fd';
+import { buildModel, buildHistory } from './model.js?v=800adfd8fd';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=800adfd8fd';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=800adfd8fd';
+import { scoreLabel } from './score.js?v=800adfd8fd';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=800adfd8fd';
+import * as store from './store.js?v=800adfd8fd';
+import * as ui from './ui.js?v=800adfd8fd';
+import { createMap } from './map.js?v=800adfd8fd';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=800adfd8fd';
+import { gearAdvice, oterWeather } from './gear.js?v=800adfd8fd';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=800adfd8fd';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=800adfd8fd';
+import { badConditionTips } from './tips.js?v=800adfd8fd';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -383,6 +384,7 @@ function todayView() {
       ${nbLine(h.warnings)}
     </div>
   </section>
+  ${tipsBlock(h.score, h.reasons) ? `<section class="card">${tipsBlock(h.score, h.reasons)}</section>` : ''}
 
   <details class="card why-card" ${whyOpen ? "open" : ""}>
     <summary><span><strong>Hvorfor akkurat nå?</strong><span class="why-summary">${ui.esc(whySummary(h.score, h.reasons))}</span></span><span class="why-more" aria-hidden="true">Vis</span></summary>
@@ -451,6 +453,101 @@ function todayView() {
         : '';
     })()}
     <button type="button" class="btn ghost" data-act="tab" data-tab="fisk">Redskap, dybde og agn for alle arter</button>
+  </section>
+
+  ${lakeCard()}`;
+}
+
+// ---------------------------------------------------------------- om vannet
+
+const LAKE_INFO_MAX_AGE = 30 * 86_400_000;
+let lakeInfoLoading = null;
+
+/** Nøkkelen et vann huskes under: posisjonen, avrundet til omtrent 100 m. */
+const lakeKey = (p) => `${p.lat.toFixed(3)},${p.lon.toFixed(3)}`;
+
+/**
+ * Henter fakta om vannet (NVE) og en tekst om hva det er kjent for
+ * (Wikipedia), én gang per vann og deretter fra telefonen i 30 dager.
+ */
+async function loadLakeInfo() {
+  const key = lakeKey(place);
+  data.lakeInfo ??= {};
+  const cached = data.lakeInfo[key];
+  if (cached && Date.now() - cached.fetchedAt < LAKE_INFO_MAX_AGE) return;
+  if (lakeInfoLoading === key) return;
+  lakeInfoLoading = key;
+  try {
+    // Lastes først når den trengs. Mangler modulen (eller nettet), viser
+    // kortet bare notatene dine, og resten av appen virker som før.
+    const lake = await lakeModule();
+    if (!lake) {
+      lakeInfoUnavailable = true;
+      if (tab === 'idag') render();
+      return;
+    }
+    const [nve, wiki] = await Promise.all([
+      lake.fetchNveLake(place.lat, place.lon).catch(() => null),
+      lake.fetchWikiLake(place.name, place.lat, place.lon).catch(() => null),
+    ]);
+    data.lakeInfo[key] = { nve, wiki, fetchedAt: Date.now() };
+    persist();
+    if (tab === 'idag') render();
+  } finally {
+    lakeInfoLoading = null;
+  }
+}
+
+let lakeInfoUnavailable = false;
+let lakePromise = null;
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=800adfd8fd').catch(() => null));
+
+/** Fangster innenfor 2 km fra vannet, så kortet kan si «3 fangster her». */
+function catchesHere() {
+  return data.catches.filter((c) => c.lat != null && distanceKm(place, c) <= 2);
+}
+
+function lakeCard() {
+  const key = lakeKey(place);
+  const info = data.lakeInfo?.[key];
+  if (!info && !lakeInfoUnavailable) loadLakeInfo();
+  const nve = info?.nve;
+  const wiki = info?.wiki;
+  const note = data.lakeNotes?.[key] ?? '';
+  const here = catchesHere();
+  const facts = [
+    nve?.areaKm2 != null ? ['Areal', `${ui.num(nve.areaKm2, nve.areaKm2 < 1 ? 2 : 1)} km²`] : null,
+    nve?.heightM != null ? ['Høyde over havet', `${ui.num(nve.heightM, 0)} moh.`] : null,
+    nve?.depthMaxM != null ? ['Største dybde', `${ui.num(nve.depthMaxM, 0)} m`] : null,
+    nve?.depthMeanM != null ? ['Snittdybde', `${ui.num(nve.depthMeanM, 0)} m`] : null,
+    nve?.vassdrag ? ['Vassdrag', ui.esc(nve.vassdrag)] : null,
+  ].filter(Boolean);
+  const species = [...new Set(here.map((c) => c.species))];
+
+  return `<section class="card lake-card">
+    <div class="card-head"><h3>Om ${ui.esc(place.name)}</h3>${place.detail ? `<span class="meta">${ui.esc(place.detail.split(' · ')[0])}</span>` : ''}</div>
+    ${
+      lakeInfoUnavailable && !info
+        ? ''
+        : !info
+        ? '<p class="hint">Henter fakta om vannet…</p>'
+        : facts.length
+          ? `<dl class="pairs lake-facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
+          : '<p class="hint">Fant ingen fakta om vannet i NVEs innsjødatabase. Små tjern og punkter utenfor et vann står ikke der.</p>'
+    }
+    ${
+      wiki
+        ? `<blockquote class="wiki">${ui.esc(wiki.extract)}<a href="${ui.esc(wiki.url)}" target="_blank" rel="noopener">Les mer på Wikipedia ↗</a></blockquote>`
+        : ''
+    }
+    ${
+      here.length
+        ? `<p class="lake-catches"><strong>Dine fangster her:</strong> ${here.length} (${species.map(ui.esc).join(', ')})</p>`
+        : ''
+    }
+    <label class="field lake-note"><span>Dine notater om vannet</span>
+      <textarea id="lake-note" rows="3" placeholder="Best ved innløpet i sørvest. Stup fra 2 til 8 m ved odden.">${ui.esc(note)}</textarea></label>
+    ${nve?.nveUrl ? `<a class="link-row" href="${ui.esc(nve.nveUrl)}" target="_blank" rel="noopener">Vannet hos NVE <span aria-hidden="true">↗</span></a>` : ''}
   </section>`;
 }
 
@@ -471,6 +568,16 @@ function whySummary(score, reasons) {
   }
   if (neg.length === 0) return 'Ingenting spesielt som hjelper akkurat nå. Vent på skumringen.';
   return `Tregt: ${list(neg.slice(0, 3))}.${pos.length ? ` Det som hjelper: ${list(pos.slice(0, 2))}.` : ''}`;
+}
+
+/** «Slik får du fisk likevel»: råd for det som trekker ned akkurat nå. */
+function tipsBlock(score, reasons) {
+  const tips = badConditionTips(score, reasons);
+  if (!tips.length) return '';
+  return `<div class="tips-box">
+    <h4>Slik får du fisk likevel</h4>
+    <ul>${tips.map((t) => `<li><strong>${ui.esc(t.for)}:</strong> ${ui.esc(t.tip)}</li>`).join('')}</ul>
+  </div>`;
 }
 
 /** «NB: Mye vind · Torden» på én linje. Tom når det ikke er noe å varsle om. */
@@ -563,6 +670,7 @@ function hourStrip(hours, tz, now) {
           <p class="why-summary">${ui.esc(whySummary(picked.score, picked.reasons))}</p>
           ${reasonList(picked.reasons)}
           ${nbList(picked.warnings)}
+          ${tipsBlock(picked.score, picked.reasons)}
         </div>`
       : '<p class="hint">Trykk på en time for å se hvorfor den er god eller dårlig.</p>'
   }`;
@@ -1162,6 +1270,14 @@ document.addEventListener('click', async (e) => {
     default:
       break;
   }
+});
+
+// Notatet om vannet lagres mens du skriver, uten egen lagre-knapp.
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'lake-note') return;
+  data.lakeNotes ??= {};
+  data.lakeNotes[lakeKey(place)] = e.target.value;
+  persist();
 });
 
 document.addEventListener('input', (e) => {

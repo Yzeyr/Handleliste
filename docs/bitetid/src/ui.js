@@ -3,7 +3,7 @@
  * døgnkurve, måne). Alt returnerer HTML-tekst. Tekst fra brukeren går alltid
  * gjennom esc(), så et notat aldri tolkes som markup.
  */
-import { sunAltitude } from './astro.js?v=4783c5f96f';
+import { sunAltitude } from './astro.js?v=800adfd8fd';
 
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

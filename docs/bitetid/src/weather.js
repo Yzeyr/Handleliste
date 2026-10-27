@@ -61,6 +61,9 @@ export function parseForecast(json) {
     const before = hours[i - 3];
     hours[i].pressureTrend =
       before && before.pressure != null && hours[i].pressure != null ? hours[i].pressure - before.pressure : null;
+    // Temperaturen seks timer bakover, for å se et kaldt vindskifte.
+    const sixBefore = hours[i - 6];
+    hours[i].tempTrend = sixBefore && sixBefore.temp != null && hours[i].temp != null ? hours[i].temp - sixBefore.temp : null;
   }
 
   const d = json.daily;
