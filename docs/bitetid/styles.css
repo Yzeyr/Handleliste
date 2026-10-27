@@ -730,3 +730,6 @@ p { margin: 0; }
 .tips-box h4 { margin: 0; font-family: var(--display); font-size: 1.05rem; }
 .tips-box ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
 .tips-box strong { color: var(--water); }
+.lake-fish { display: flex; flex-direction: column; gap: 8px; }
+.fish-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.static { cursor: default; }

@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=800adfd8fd';
-import { buildModel, buildHistory } from './model.js?v=800adfd8fd';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=800adfd8fd';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=800adfd8fd';
-import { scoreLabel } from './score.js?v=800adfd8fd';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=800adfd8fd';
-import * as store from './store.js?v=800adfd8fd';
-import * as ui from './ui.js?v=800adfd8fd';
-import { createMap } from './map.js?v=800adfd8fd';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=800adfd8fd';
-import { gearAdvice, oterWeather } from './gear.js?v=800adfd8fd';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=800adfd8fd';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=800adfd8fd';
-import { badConditionTips } from './tips.js?v=800adfd8fd';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=fd98ec12f6';
+import { buildModel, buildHistory } from './model.js?v=fd98ec12f6';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=fd98ec12f6';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=fd98ec12f6';
+import { scoreLabel } from './score.js?v=fd98ec12f6';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=fd98ec12f6';
+import * as store from './store.js?v=fd98ec12f6';
+import * as ui from './ui.js?v=fd98ec12f6';
+import { createMap } from './map.js?v=fd98ec12f6';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=fd98ec12f6';
+import { gearAdvice, oterWeather } from './gear.js?v=fd98ec12f6';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=fd98ec12f6';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=fd98ec12f6';
+import { badConditionTips } from './tips.js?v=fd98ec12f6';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -486,11 +486,20 @@ async function loadLakeInfo() {
       if (tab === 'idag') render();
       return;
     }
-    const [nve, wiki] = await Promise.all([
-      lake.fetchNveLake(place.lat, place.lon).catch(() => null),
-      lake.fetchWikiLake(place.name, place.lat, place.lon).catch(() => null),
+    // NVE først: navnet der (Salsvatnet) kan være et annet enn det du søkte
+    // på (Salvatnet), og Wikipedia trenger begge for å finne riktig artikkel.
+    const nve = await lake.fetchNveLake(place.lat, place.lon).catch(() => null);
+    const [wiki, fish] = await Promise.all([
+      lake
+        .fetchWikiLake(place.name, place.lat, place.lon, undefined, {
+          aliases: nve?.name && nve.name !== place.name ? [nve.name] : [],
+          kommune: nve?.kommune ?? null,
+          areaKm2: nve?.areaKm2 ?? null,
+        })
+        .catch(() => null),
+      lake.fetchLakeFish(place.lat, place.lon).catch(() => null),
     ]);
-    data.lakeInfo[key] = { nve, wiki, fetchedAt: Date.now() };
+    data.lakeInfo[key] = { nve, wiki, fish, fetchedAt: Date.now() };
     persist();
     if (tab === 'idag') render();
   } finally {
@@ -500,7 +509,7 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=800adfd8fd').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=fd98ec12f6').catch(() => null));
 
 /** Fangster innenfor 2 km fra vannet, så kortet kan si «3 fangster her». */
 function catchesHere() {
@@ -521,7 +530,9 @@ function lakeCard() {
     nve?.depthMaxM != null ? ['Største dybde', `${ui.num(nve.depthMaxM, 0)} m`] : null,
     nve?.depthMeanM != null ? ['Snittdybde', `${ui.num(nve.depthMeanM, 0)} m`] : null,
     nve?.vassdrag ? ['Vassdrag', ui.esc(nve.vassdrag)] : null,
+    nve?.regulated ? ['Regulert', 'Ja, vannstanden kan variere mye'] : null,
   ].filter(Boolean);
+  const fish = info?.fish?.species ?? null;
   const species = [...new Set(here.map((c) => c.species))];
 
   return `<section class="card lake-card">
@@ -541,13 +552,33 @@ function lakeCard() {
         : ''
     }
     ${
+      fish && fish.length
+        ? `<div class="lake-fish"><strong>Registrert fisk</strong>
+            <ul class="fish-chips">${fish
+              .slice(0, 10)
+              .map(
+                (f) =>
+                  `<li>${
+                    SPECIES.some((s) => s.id === f.id)
+                      ? `<button type="button" class="chip small" data-act="species-go" data-id="${ui.esc(f.id)}">${ui.esc(f.name)}</button>`
+                      : `<span class="chip small static">${ui.esc(f.name)}</span>`
+                  }</li>`,
+              )
+              .join('')}</ul>
+            <p class="hint">Funn registrert i artsdatabaser (Artsdatabanken, NINA, NTNU m.fl.). Det sier at arten er funnet her, ikke hvor mye det er i dag.</p></div>`
+        : fish && fish.length === 0
+          ? '<p class="hint">Ingen fiskefunn registrert i artsdatabasene for dette vannet ennå.</p>'
+          : ''
+    }
+    ${
       here.length
         ? `<p class="lake-catches"><strong>Dine fangster her:</strong> ${here.length} (${species.map(ui.esc).join(', ')})</p>`
         : ''
     }
     <label class="field lake-note"><span>Dine notater om vannet</span>
       <textarea id="lake-note" rows="3" placeholder="Best ved innløpet i sørvest. Stup fra 2 til 8 m ved odden.">${ui.esc(note)}</textarea></label>
-    ${nve?.nveUrl ? `<a class="link-row" href="${ui.esc(nve.nveUrl)}" target="_blank" rel="noopener">Vannet hos NVE <span aria-hidden="true">↗</span></a>` : ''}
+    ${nve?.depthMapUrl ? `<a class="link-row" href="${ui.esc(nve.depthMapUrl)}" target="_blank" rel="noopener">Dybdekart (PDF fra NVE)${nve.depthSurveyYear && nve.depthSurveyYear > 1900 ? `, målt ${nve.depthSurveyYear}` : ''} <span aria-hidden="true">↗</span></a>` : ''}
+    ${nve?.nveUrl ? `<a class="link-row" href="${ui.esc(nve.nveUrl)}" target="_blank" rel="noopener">Vannet i NVEs kart <span aria-hidden="true">↗</span></a>` : ''}
   </section>`;
 }
 
@@ -1197,6 +1228,15 @@ document.addEventListener('click', async (e) => {
       weekMode = el.dataset.mode;
       openDay = weekMode === 'fram' ? 'f0' : null;
       render();
+      break;
+    case 'species-go':
+      // Fra «Registrert fisk» i Om vannet: rett til fiskeguiden for arten.
+      data.species = el.dataset.id;
+      persist();
+      tab = 'fisk';
+      window.history.replaceState(null, '', '#fisk');
+      render();
+      window.scrollTo({ top: 0 });
       break;
     case 'species':
       data.species = el.dataset.id;

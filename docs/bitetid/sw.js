@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-800adfd8fd';
+const CACHE = 'bitetid-fd98ec12f6';
 const SHELL = [
   './',
   './index.html',
@@ -27,6 +27,7 @@ const SHELL = [
   './src/gear.js',
   './src/tiles.js',
   './src/offlinemaps.js',
+  './src/lakeinfo.js',
   './src/tips.js',
 ];
 
