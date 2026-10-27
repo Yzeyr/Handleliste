@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=86f1f0be75';
-import { buildModel, buildHistory, MODELS } from './model.js?v=86f1f0be75';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=86f1f0be75';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=86f1f0be75';
-import { scoreLabel } from './score.js?v=86f1f0be75';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=86f1f0be75';
-import * as store from './store.js?v=86f1f0be75';
-import * as ui from './ui.js?v=86f1f0be75';
-import { createMap } from './map.js?v=86f1f0be75';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=86f1f0be75';
-import { gearAdvice, oterWeather } from './gear.js?v=86f1f0be75';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=86f1f0be75';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=86f1f0be75';
-import { badConditionTips } from './tips.js?v=86f1f0be75';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=c3125679f8';
+import { buildModel, buildHistory, MODELS } from './model.js?v=c3125679f8';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=c3125679f8';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=c3125679f8';
+import { scoreLabel } from './score.js?v=c3125679f8';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=c3125679f8';
+import * as store from './store.js?v=c3125679f8';
+import * as ui from './ui.js?v=c3125679f8';
+import { createMap } from './map.js?v=c3125679f8';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=c3125679f8';
+import { gearAdvice, oterWeather } from './gear.js?v=c3125679f8';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=c3125679f8';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=c3125679f8';
+import { badConditionTips, windSpot } from './tips.js?v=c3125679f8';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -446,6 +446,7 @@ function todayView() {
     <div class="card-head"><h3>${species.name} nå</h3><span class="meta">${SEASONS[season].name}</span></div>
     <p>${ui.esc(advice.where)}</p>
     <p class="depth"><span>Dybde</span> ${ui.esc(advice.depth)}</p>
+    ${species.water === 'elv' ? '' : spotLine(h)}
     ${(() => {
       const ctx = { season, waterTemp: model.waterTemp, speciesId: species.id, water: species.water === 'elv' ? 'elv' : 'innsjo' };
       const month = Number(new Intl.DateTimeFormat('en', { timeZone: tz, month: 'numeric' }).format(now));
@@ -515,7 +516,7 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=86f1f0be75').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=c3125679f8').catch(() => null));
 
 /** Fangster innenfor 2 km fra vannet, så kortet kan si «3 fangster her». */
 function catchesHere() {
@@ -630,6 +631,12 @@ const MODEL_TEXT = {
     'Forskning vekter etter hva studiene viser: mest skumring, art og vanntemperatur, lite måne og lufttrykk, og ingen straff for nordavind.',
 };
 
+/** «Hvor»: hvilken side av vannet vinden gjør best. Tom i stille vær. */
+function spotLine(hour) {
+  const spot = windSpot(hour);
+  return spot ? `<p class="spot"><span class="spot-tag">Hvor</span> ${ui.esc(spot.text)}</p>` : '';
+}
+
 /** «Slik får du fisk likevel»: råd for det som trekker ned akkurat nå. */
 function tipsBlock(score, reasons) {
   const tips = badConditionTips(score, reasons);
@@ -731,6 +738,7 @@ function hourStrip(hours, tz, now) {
           <p class="meta">${MODELS[data.model].name} · ${data.model === 'forskning' ? 'Erfaring' : 'Forskning'} gir ${picked.other.score}</p>
           ${reasonList(picked.reasons)}
           ${nbList(picked.warnings)}
+          ${spotLine(picked)}
           ${tipsBlock(picked.score, picked.reasons)}
         </div>`
       : '<p class="hint">Trykk på en time for å se hvorfor den er god eller dårlig.</p>'
@@ -861,6 +869,7 @@ function gearCard(hour, ctx, species, month) {
     <div class="card-head"><h3>Redskap nå</h3>${
       oter ? `<span class="oter-badge ${oter.good ? 'good' : ''}">${ui.esc(oter.label)}</span>` : ''
     }</div>
+    ${ctx.water === 'elv' ? '' : spotLine(hour)}
     <ol class="gear-list">${items}</ol>
     ${oter ? `<p class="hint">${ui.esc(oter.text)}</p>` : ''}
   </section>`;

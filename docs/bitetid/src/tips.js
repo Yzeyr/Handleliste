@@ -40,3 +40,34 @@ export function badConditionTips(score, reasons) {
 }
 
 export { TIPS };
+
+const SIDES = ['nord', 'nordøst', 'øst', 'sørøst', 'sør', 'sørvest', 'vest', 'nordvest'];
+
+/**
+ * Hvor du bør stå ut fra vindretningen.
+ *
+ * Vinden skyver overflatevannet, planktonet og småfisken mot den siden av
+ * vannet den blåser mot. På siden den kommer fra, kan kaldere vann komme
+ * opp fra dypet. Derfor: fisk på siden der du har vinden i ansiktet. I
+ * nordavind er det sørsiden. Er det kuling, gjelder sikkerheten først: da
+ * er le-siden (der vinden kommer fra) tryggest, men fisken står fortsatt
+ * mot vindsiden.
+ *
+ * Gir null i stille vær, når retningen ikke betyr noe.
+ */
+export function windSpot(hour) {
+  if (!hour || hour.wind == null || hour.wind < 2) return null;
+  const dir = (((hour.windDir ?? 0) % 360) + 360) % 360;
+  const from = SIDES[Math.round(dir / 45) % 8];
+  const toward = SIDES[(Math.round(dir / 45) + 4) % 8];
+  const north = dir >= 315 || dir <= 45;
+  const cold = hour.tempTrend != null && hour.tempTrend <= -2;
+  let text = `Vinden kommer fra ${from}. Fisk på ${toward}siden av vannet, der den blåser inn mot land: der samles mat og småfisk.`;
+  if (north) {
+    text += cold
+      ? ' Nordavinden er kald nå, så fisken står dypere: fisk sakte og nær bunnen der.'
+      : ' I nordavind står fisken gjerne litt dypere enn vanlig.';
+  }
+  if (hour.wind >= 14) text += ` Det er kuling, så hold deg på land, gjerne i le på ${from}siden.`;
+  return { from, toward, text };
+}

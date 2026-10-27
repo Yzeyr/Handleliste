@@ -740,3 +740,7 @@ p { margin: 0; }
 .model-switch button { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 4px 2px; border: none; border-radius: 9px; background: none; color: var(--muted); font-size: 0.66rem; font-weight: 700; }
 .model-switch button strong { font-family: var(--mono); font-size: 0.95rem; }
 .model-switch button[aria-pressed='true'] { background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
+
+/* -- hvor: siden av vannet vinden gjør best */
+.spot { font-size: 0.92rem; display: flex; gap: 8px; align-items: baseline; }
+.spot-tag { flex: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--water); background: color-mix(in srgb, var(--water) 12%, transparent); padding: 2px 8px; border-radius: 999px; }

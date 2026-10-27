@@ -8,10 +8,10 @@
  * du har valgt, ligger direkte på timen (score, reasons, warnings) og styrer
  * kurver og beste tider; den andre ligger under `other`.
  */
-import { skyDay, solunarPeriods, sunAltitude } from './astro.js?v=86f1f0be75';
-import { bestWindows, dayScore, hourScore } from './score.js?v=86f1f0be75';
-import { researchScore } from './research.js?v=86f1f0be75';
-import { dailyFromHours, estimateWaterTemp } from './weather.js?v=86f1f0be75';
+import { skyDay, solunarPeriods, sunAltitude } from './astro.js?v=c3125679f8';
+import { bestWindows, dayScore, hourScore } from './score.js?v=c3125679f8';
+import { researchScore } from './research.js?v=c3125679f8';
+import { dailyFromHours, estimateWaterTemp } from './weather.js?v=c3125679f8';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
