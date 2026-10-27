@@ -5,7 +5,7 @@
  *
  * Knappene i boblene har data-act, og fanges av appens felles klikk-lytter.
  */
-import { esc } from './ui.js?v=2837e4c3b2';
+import { esc } from './ui.js?v=4783c5f96f';
 
 export function createMap(el, { onPick }) {
   const L = window.L;
@@ -16,6 +16,10 @@ export function createMap(el, { onPick }) {
 
   const topo = L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
     maxZoom: 18,
+    // Zoom 17 og 18 forstørrer bitene fra 16 i stedet for å hente nye. Da
+    // kan du zoome helt inn også på et lagret kart uten nett, og «Detaljert»
+    // (som lagrer til 16) dekker alle zoomnivåene.
+    maxNativeZoom: 16,
     attribution: '© <a href="https://www.kartverket.no/">Kartverket</a>',
   });
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -28,6 +32,7 @@ export function createMap(el, { onPick }) {
   L.control.layers({ 'Topografisk (Kartverket)': topo, OpenStreetMap: osm }, {}, { position: 'topright' }).addTo(map);
 
   const layer = L.layerGroup().addTo(map);
+  const areaLayer = L.layerGroup().addTo(map);
   let picked = null;
 
   const pin = (cls, label) =>
@@ -74,6 +79,30 @@ export function createMap(el, { onPick }) {
     },
     center(lat, lon, zoom = 12) {
       map.setView([lat, lon], zoom);
+    },
+    /** Området du ser på nå, som { south, west, north, east }. */
+    bounds() {
+      const b = map.getBounds();
+      return { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() };
+    },
+    zoom() {
+      return map.getZoom();
+    },
+    fit(b) {
+      map.fitBounds([[b.south, b.west], [b.north, b.east]], { padding: [12, 12] });
+    },
+    /** Lagrede kartområder som stiplede rammer, så du ser hva som virker uten nett. */
+    showAreas(areas) {
+      areaLayer.clearLayers();
+      for (const a of areas) {
+        L.rectangle([[a.bounds.south, a.bounds.west], [a.bounds.north, a.bounds.east]], {
+          color: '#e07b2c',
+          weight: 2,
+          dashArray: '6 6',
+          fill: false,
+          interactive: false,
+        }).addTo(areaLayer);
+      }
     },
     clearPick() {
       if (picked) picked.remove();

@@ -5,17 +5,19 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=2837e4c3b2';
-import { buildModel, buildHistory } from './model.js?v=2837e4c3b2';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=2837e4c3b2';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=2837e4c3b2';
-import { scoreLabel } from './score.js?v=2837e4c3b2';
-import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=2837e4c3b2';
-import * as store from './store.js?v=2837e4c3b2';
-import * as ui from './ui.js?v=2837e4c3b2';
-import { createMap } from './map.js?v=2837e4c3b2';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=2837e4c3b2';
-import { gearAdvice, oterWeather } from './gear.js?v=2837e4c3b2';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=4783c5f96f';
+import { buildModel, buildHistory } from './model.js?v=4783c5f96f';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=4783c5f96f';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=4783c5f96f';
+import { scoreLabel } from './score.js?v=4783c5f96f';
+import { SPECIES, SEASONS, fishSeason, conditionTips } from './species.js?v=4783c5f96f';
+import * as store from './store.js?v=4783c5f96f';
+import * as ui from './ui.js?v=4783c5f96f';
+import { createMap } from './map.js?v=4783c5f96f';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=4783c5f96f';
+import { gearAdvice, oterWeather } from './gear.js?v=4783c5f96f';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=4783c5f96f';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=4783c5f96f';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -172,6 +174,119 @@ function ensureMap() {
   mapView?.resize();
   mapView?.show(place, data.spots, data.catches);
   renderSpotList();
+  renderOfflineMaps();
+}
+
+/** «Kart på telefonen»: lagrede områder, og knappen for å lagre det du ser. */
+function renderOfflineMaps() {
+  const box = $('#offline-maps');
+  if (!offlineMapsSupported() || !mapView) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const areas = loadAreas();
+  mapView.showAreas(areas);
+  const tz = model?.timezone ?? 'Europe/Oslo';
+  box.innerHTML = `
+    <div class="card-head"><h3>Kart på telefonen</h3>${areas.length ? `<span class="meta">${formatMB(areas.reduce((s, a) => s + a.bytes, 0))}</span>` : ''}</div>
+    ${
+      areas.length
+        ? `<ul class="areas">${areas
+            .map(
+              (a) => `<li class="area">
+                <div class="area-main"><strong>${ui.esc(a.name)}</strong>
+                  <span class="meta">${formatMB(a.bytes)} · ${LEVELS_BY_ZOOM(a.zmax)} · lagret ${ui.dateShort(a.savedAt, tz)}${a.failed ? ` · ${a.failed} biter mangler` : ''}</span></div>
+                <button type="button" class="btn small ghost" data-act="area-show" data-id="${ui.esc(a.id)}">Vis</button>
+                ${
+                  confirmDelete === a.id
+                    ? `<button type="button" class="btn small danger-solid" data-act="area-del" data-id="${ui.esc(a.id)}">Slett</button>`
+                    : `<button type="button" class="icon-btn" data-act="area-del-ask" data-id="${ui.esc(a.id)}" aria-label="Slett ${ui.esc(a.name)}">×</button>`
+                }
+              </li>`,
+            )
+            .join('')}</ul>`
+        : '<p class="hint">Lagre kartet rundt vannene dine, så virker det uten dekning. Kart du har sett på, huskes også en stund.</p>'
+    }
+    <button type="button" class="btn big" data-act="area-new">Lagre kartet du ser</button>
+    <p class="hint">Flytt og zoom kartet så det dekker området du vil ha, og trykk på knappen. Bare Kartverkets topografiske kart kan lagres.</p>`;
+}
+
+const LEVELS_BY_ZOOM = (zmax) => (zmax >= LEVELS.detaljert.zmax ? 'detaljert' : 'vanlig');
+
+/** Arket for å lagre et område: navn, detaljnivå med anslått størrelse, og fremdrift. */
+function areaSheet() {
+  const bounds = mapView.bounds();
+  const options = Object.entries(LEVELS)
+    .map(([id, l]) => {
+      const n = countTiles(bounds, l.zmin, l.zmax);
+      const tooBig = n > MAX_TILES;
+      return `<label class="level ${tooBig ? 'too-big' : ''}"><input type="radio" name="level" value="${id}" ${id === 'vanlig' ? 'checked' : ''} ${tooBig ? 'disabled' : ''}>
+        <span><strong>${l.name}</strong><small>${l.hint}</small></span>
+        <span class="level-size">${tooBig ? 'For stort' : `ca. ${formatMB(n * AVG_TILE_BYTES)}`}</span></label>`;
+    })
+    .join('');
+  const tooBigAll = Object.values(LEVELS).every((l) => countTiles(bounds, l.zmin, l.zmax) > MAX_TILES);
+  openSheet(
+    `<h2>Lagre kartet</h2>
+     <form id="area-form" class="form">
+       <label class="field"><span>Navn</span><input id="a-name" name="name" required autocomplete="off" value="${ui.esc(place.example ? '' : place.name)}" placeholder="Auritjønna"></label>
+       <fieldset class="levels"><legend>Detaljer</legend>${options}</fieldset>
+       ${tooBigAll ? '<p class="error">Området er for stort. Lukk, zoom inn på kartet og prøv igjen.</p>' : ''}
+       <div id="a-progress" class="progress-box" hidden><span class="bar"><span id="a-bar" style="width:0%"></span></span><span id="a-text" class="meta"></span></div>
+       <p id="a-error" class="error" role="alert"></p>
+       <button id="a-go" class="btn big" type="submit" ${tooBigAll ? 'disabled' : ''}>Last ned</button>
+     </form>`,
+    '#a-name',
+  );
+  $('#area-form').dataset.bounds = JSON.stringify(bounds);
+}
+
+let areaAbort = null;
+let confirmDelete = null;
+
+async function saveArea(form) {
+  const f = new FormData(form);
+  const name = String(f.get('name') ?? '').trim();
+  if (!name) {
+    $('#a-error').textContent = 'Gi kartet et navn, for eksempel vannet det dekker.';
+    return;
+  }
+  const level = LEVELS[String(f.get('level') ?? 'vanlig')];
+  const bounds = JSON.parse(form.dataset.bounds);
+  const go = $('#a-go');
+  go.textContent = 'Avbryt';
+  go.type = 'button';
+  go.dataset.act = 'area-cancel';
+  $('#a-progress').hidden = false;
+  areaAbort = new AbortController();
+  try {
+    const area = await downloadArea(
+      { name, bounds, zmin: level.zmin, zmax: level.zmax },
+      {
+        signal: areaAbort.signal,
+        onProgress: ({ done, total, bytes }) => {
+          $('#a-bar').style.width = `${Math.round((done / total) * 100)}%`;
+          $('#a-text').textContent = `${done} av ${total} kartbiter · ${formatMB(bytes)}`;
+        },
+      },
+    );
+    closeSheet();
+    renderOfflineMaps();
+    toast(area.failed ? `${name} lagret, men ${area.failed} biter manglet. Prøv igjen med bedre dekning.` : `${name} er lagret på telefonen (${formatMB(area.bytes)})`);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      closeSheet();
+      toast('Nedlastingen ble avbrutt');
+    } else {
+      $('#a-error').textContent = e.message || 'Nedlastingen stoppet. Sjekk nettet og prøv igjen.';
+      go.textContent = 'Prøv igjen';
+      go.type = 'submit';
+      delete go.dataset.act;
+    }
+  } finally {
+    areaAbort = null;
+  }
 }
 
 function renderSpotList() {
@@ -265,12 +380,14 @@ function todayView() {
       <h2 class="verdict tier-${ui.tier(h.score)}">${scoreLabel(h.score)}</h2>
       <p class="next">${nextWindowText(now)}</p>
       <ul class="reasons">${reasons}</ul>
+      ${nbLine(h.warnings)}
     </div>
   </section>
 
   <details class="card why-card" ${whyOpen ? "open" : ""}>
     <summary><span><strong>Hvorfor akkurat nå?</strong><span class="why-summary">${ui.esc(whySummary(h.score, h.reasons))}</span></span><span class="why-more" aria-hidden="true">Vis</span></summary>
     ${reasonList(h.reasons)}
+    ${nbList(h.warnings)}
     <p class="hint">Poengene starter på 30 og justeres opp eller ned av hver ting over. Lyset og lufttrykket teller mest.</p>
   </details>
 
@@ -356,6 +473,30 @@ function whySummary(score, reasons) {
   return `Tregt: ${list(neg.slice(0, 3))}.${pos.length ? ` Det som hjelper: ${list(pos.slice(0, 2))}.` : ''}`;
 }
 
+/** «NB: Mye vind · Torden» på én linje. Tom når det ikke er noe å varsle om. */
+function nbLine(warnings = []) {
+  if (!warnings.length) return '';
+  return `<p class="nb"><strong>NB:</strong> ${warnings.map((w) => ui.esc(w.text)).join(' · ')}</p>`;
+}
+
+/** NB-varslene med forklaring, under grunnene. */
+function nbList(warnings = []) {
+  if (!warnings.length) return '';
+  return `<ul class="nb-list">${warnings
+    .map((w) => `<li><span class="nb-tag">NB</span><div><strong>${ui.esc(w.text)}</strong>${w.why ? `<p>${ui.esc(w.why)}</p>` : ''}</div></li>`)
+    .join('')}</ul>`;
+}
+
+/** Varslene for et døgn: alle ulike NB-er i timene mellom gry og skumring. */
+function dayWarnings(hours) {
+  const seen = new Map();
+  for (const h of hours) {
+    if (h.sunAlt < -6) continue;
+    for (const w of h.warnings ?? []) seen.set(w.text, w);
+  }
+  return [...seen.values()];
+}
+
 /** Alle grunnene med poeng og forklaring. */
 function reasonList(reasons) {
   if (reasons.length === 0) return '<p class="hint">Ingen spesielle forhold denne timen.</p>';
@@ -400,7 +541,7 @@ function hourStrip(hours, tz, now) {
       const wx = describeWeather(h.code);
       const isNow = now >= h.t && now < h.t + 3_600_000;
       return `<li class="hour ${isNow ? 'now' : ''} ${h.sunAlt < -6 ? 'dark' : ''} ${h.t === pickedHour ? 'picked' : ''}" ${isNow ? 'data-now' : ''} data-act="hour" data-t="${h.t}" role="button" tabindex="0" aria-pressed="${h.t === pickedHour}" aria-label="Kl. ${ui.hourOnly(h.t, tz)}, ${h.score} poeng. Vis hvorfor.">
-        <span class="hour-time">${isNow ? 'Nå' : ui.hourOnly(h.t, tz)}</span>
+        <span class="hour-time">${isNow ? 'Nå' : ui.hourOnly(h.t, tz)}${h.warnings?.length ? '<i class="hour-nb" title="NB">!</i>' : ''}</span>
         <span class="hour-score tier-${ui.tier(h.score)}">${h.score}</span>
         ${ui.weatherIcon(wx.icon, 22)}
         <span class="hour-temp">${ui.num(h.temp, 0)}°</span>
@@ -421,6 +562,7 @@ function hourStrip(hours, tz, now) {
           <button type="button" class="icon-btn" data-act="hour" data-t="${picked.t}" aria-label="Lukk">×</button></div>
           <p class="why-summary">${ui.esc(whySummary(picked.score, picked.reasons))}</p>
           ${reasonList(picked.reasons)}
+          ${nbList(picked.warnings)}
         </div>`
       : '<p class="hint">Trykk på en time for å se hvorfor den er god eller dårlig.</p>'
   }`;
@@ -463,7 +605,11 @@ function dayRows(days, { past, tz, now, prefix }) {
                 ${(() => {
                   // Dagens beste time sier mest om hvorfor dagen er god eller dårlig.
                   const top = [...d.hours].sort((a, b) => b.score - a.score)[0];
-                  return top ? `<p class="why-day"><strong>Derfor:</strong> ${ui.esc(whySummary(d.score, top.reasons))}</p>` : '';
+                  // NB-varsler for timene det er lyst, der folk faktisk fisker.
+                  const dayWarn = dayWarnings(d.hours);
+                  return top
+                    ? `<p class="why-day"><strong>Derfor:</strong> ${ui.esc(whySummary(d.score, top.reasons))}</p>${nbLine(dayWarn)}`
+                    : '';
                 })()}
                 <div class="chart-wrap">${ui.dayChart(d, place, tz, now, `d${id}`)}</div>
                 <ul class="windows">${d.windows.map((w) => `<li class="window tier-${ui.tier(w.peak)}"><span class="window-time">${ui.span(w.start, w.end, tz)}</span><span class="window-score">${w.peak}</span></li>`).join('')}</ul>
@@ -914,6 +1060,31 @@ document.addEventListener('click', async (e) => {
       window.scrollTo({ top: y });
       break;
     }
+    case 'area-new':
+      if (mapView) areaSheet();
+      break;
+    case 'area-cancel':
+      areaAbort?.abort();
+      break;
+    case 'area-show': {
+      const a = loadAreas().find((x) => x.id === el.dataset.id);
+      if (a) mapView?.fit(a.bounds);
+      break;
+    }
+    case 'area-del-ask':
+      // Sletting kan ikke angres (kartet må lastes ned på nytt), så det
+      // kreves ett trykk til på en tydelig «Slett»-knapp.
+      confirmDelete = el.dataset.id;
+      renderOfflineMaps();
+      break;
+    case 'area-del': {
+      const a = loadAreas().find((x) => x.id === el.dataset.id);
+      confirmDelete = null;
+      await deleteArea(el.dataset.id);
+      renderOfflineMaps();
+      if (a) toast(`${a.name} er slettet fra telefonen`);
+      break;
+    }
     case 'week-mode':
       weekMode = el.dataset.mode;
       openDay = weekMode === 'fram' ? 'f0' : null;
@@ -1003,6 +1174,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('submit', (e) => {
   e.preventDefault();
   if (e.target.id === 'catch-form') saveCatch(e.target);
+  if (e.target.id === 'area-form') saveArea(e.target);
   if (e.target.id === 'spot-form') {
     const f = new FormData(e.target);
     const name = String(f.get('name') ?? '').trim();
@@ -1059,7 +1231,7 @@ buildChrome();
 rebuild();
 if (!forecast || Date.now() - forecast.fetchedAt > STALE_MS) refresh();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   // Når en ny utgave tar over, lastes siden på nytt én gang. Uten dette
   // kjørte appen på hjemskjermen gammel kode til den ble lukket helt.
   const hadController = Boolean(navigator.serviceWorker.controller);

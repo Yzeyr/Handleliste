@@ -690,3 +690,30 @@ p { margin: 0; }
 .hour-why { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; background: var(--surface); }
 .hour-why h4 { margin: 0; font-family: var(--display); font-size: 1rem; }
 .hour-why .card-head { flex-wrap: nowrap; align-items: center; }
+
+/* -- kart på telefonen */
+.offline-card { margin-bottom: 12px; }
+.areas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.area { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.area-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.btn.danger-solid { background: var(--danger); color: #fff; }
+.levels { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.levels legend { font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.level { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
+.level:has(input:checked) { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember) inset; }
+.level span:nth-of-type(1) { flex: 1; display: flex; flex-direction: column; }
+.level small { color: var(--muted); }
+.level-size { font-family: var(--mono); font-size: 0.85rem; }
+.level.too-big { opacity: 0.5; }
+.progress-box { display: flex; flex-direction: column; gap: 6px; }
+.progress-box .bar span { background: var(--ember); transition: width 0.2s; }
+
+/* -- NB-varsler: angår deg, ikke fisken */
+.nb { font-size: 0.85rem; color: var(--ember); margin-top: 2px; }
+.nb strong { letter-spacing: 0.04em; }
+.nb-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.nb-list li { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; }
+.nb-list p { margin-top: 2px; font-size: 0.88rem; color: var(--muted); }
+.nb-tag { font-family: var(--mono); font-weight: 700; font-size: 0.8rem; text-align: center; padding: 3px 0; border-radius: 8px; color: var(--ember); background: color-mix(in srgb, var(--ember) 14%, transparent); }
+.hour-time { position: relative; }
+.hour-nb { position: absolute; top: -6px; right: -12px; width: 14px; height: 14px; border-radius: 999px; background: var(--ember); color: #fff; font-style: normal; font-size: 10px; font-weight: 800; line-height: 14px; text-align: center; font-family: var(--body); }

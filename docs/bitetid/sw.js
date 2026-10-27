@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-2837e4c3b2';
+const CACHE = 'bitetid-4783c5f96f';
 const SHELL = [
   './',
   './index.html',
@@ -25,6 +25,8 @@ const SHELL = [
   './src/sky.js',
   './src/history.js',
   './src/gear.js',
+  './src/tiles.js',
+  './src/offlinemaps.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,13 +37,49 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // Gamle utgaver av appen ryddes bort, men aldri kartene: de skal
+      // overleve hver oppdatering.
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && !k.startsWith('bitetid-kart')).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
 
+/**
+ * Kartbiter fra Kartverket: fra telefonen først, så nettet.
+ *
+ * «bitetid-kart» er områdene du har lagret med vilje. «bitetid-kart-sett»
+ * er biter du bare har sett på; de tas vare på også, så kartet du nettopp
+ * så på virker uten dekning, men den lista holdes under et tak så den ikke
+ * vokser for alltid.
+ */
+const SEEN = 'bitetid-kart-sett';
+const SEEN_MAX = 1500;
+
+async function tile(request) {
+  const saved = await caches.match(request.url, { cacheName: 'bitetid-kart' });
+  if (saved) return saved;
+  const seen = await caches.open(SEEN);
+  const hit = await seen.match(request.url);
+  if (hit) return hit;
+  try {
+    const res = await fetch(request.url, { mode: 'cors' });
+    if (res.ok) {
+      await seen.put(request.url, res.clone());
+      const keys = await seen.keys();
+      for (const old of keys.slice(0, Math.max(0, keys.length - SEEN_MAX))) await seen.delete(old);
+    }
+    return res;
+  } catch {
+    return new Response('', { status: 504, statusText: 'Uten nett' });
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  if (url.hostname === 'cache.kartverket.no' && event.request.method === 'GET') {
+    event.respondWith(tile(event.request));
+    return;
+  }
   // Bare appens egne filer, og skrift/Leaflet fra CDN. Værdata og kartfliser
   // går rett til nettet.
   const own = url.origin === self.location.origin;
