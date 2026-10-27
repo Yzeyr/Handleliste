@@ -42,7 +42,9 @@ let error = null;
 let mapView = null;
 let archive = loadArchive();
 let weekMode = 'fram';
-let history = null;
+// Dagene fra værarkivet, regnet ut når Uke viser «Siste 30 dager». Heter
+// ikke «history»: det navnet tilhører nettleseren, og fanene bruker det.
+let archiveDays = null;
 
 const $ = (sel) => document.querySelector(sel);
 const persist = () => store.save(data);
@@ -63,7 +65,7 @@ async function refresh({ quiet = false } = {}) {
     const pastDays = needsBackfill(archive, place, now) ? 92 : 2;
     forecast = await fetchForecast(place.lat, place.lon, { pastDays });
     archive = saveArchive(mergeHistory(archive, place, forecast, now));
-    history = null;
+    archiveDays = null;
     // Siste kopi av varselet, til appen åpnes uten nett. Fortiden ligger i
     // arkivet, så kopien trenger bare de siste to døgnene bakover.
     const keepFrom = now - 2 * 86_400_000;
@@ -92,7 +94,7 @@ function setPlace(next) {
   persist();
   forecast = null;
   model = null;
-  history = null;
+  archiveDays = null;
   render();
   refresh();
   mapView?.center(place.lat, place.lon);
@@ -426,19 +428,19 @@ function weekView() {
     </div>`;
 
   if (weekMode === 'bak') {
-    history ??= buildHistory(historyHours(archive, place), place, tz, now, 30);
+    archiveDays ??= buildHistory(historyHours(archive, place), place, tz, now, 30);
     const stored = coveredDays(archive, place);
-    if (history.length === 0) {
+    if (archiveDays.length === 0) {
       return `${toggle}<section class="card empty-state"><h2>Ingen historikk ennå</h2><p>Været lagres på telefonen hver gang appen henter nytt varsel.</p></section>`;
     }
-    const best = [...history].sort((a, b) => b.score - a.score)[0];
+    const best = [...archiveDays].sort((a, b) => b.score - a.score)[0];
     return `${toggle}
       <section class="card week-summary">
-        <p class="eyebrow">Beste dag siste ${history.length} dager</p>
+        <p class="eyebrow">Beste dag siste ${archiveDays.length} dager</p>
         <h2>${ui.weekday(best.start, tz)} ${ui.dateShort(best.start, tz)}</h2>
         <p class="next">${scoreLabel(best.score)}${best.windows[0] ? `, best ${ui.span(best.windows[0].start, best.windows[0].end, tz)}` : ''}.</p>
       </section>
-      <ul class="days">${dayRows(history, { past: true, tz, now, prefix: 'b' })}</ul>
+      <ul class="days">${dayRows(archiveDays, { past: true, tz, now, prefix: 'b' })}</ul>
       <p class="hint">Lagret vær for ${ui.esc(place.name)}: ${stored} dager. Arkivet ligger på telefonen og holder inntil ett år.</p>`;
   }
 
@@ -804,7 +806,7 @@ document.addEventListener('click', async (e) => {
   switch (act) {
     case 'tab':
       tab = el.dataset.tab;
-      history.replaceState(null, '', `#${tab}`);
+      window.history.replaceState(null, '', `#${tab}`);
       render();
       window.scrollTo({ top: 0 });
       break;

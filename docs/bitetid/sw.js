@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-v4';
+const CACHE = 'bitetid-v5';
 const SHELL = [
   './',
   './index.html',
