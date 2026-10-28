@@ -5,20 +5,20 @@
  * alle klikk fanges av én lytter via data-act. Kartet er unntaket: det lever
  * i sitt eget element og bygges ikke på nytt.
  */
-import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=ff2ce435e0';
-import { buildModel, buildHistory, MODELS } from './model.js?v=ff2ce435e0';
-import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=ff2ce435e0';
-import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=ff2ce435e0';
-import { scoreLabel } from './score.js?v=ff2ce435e0';
-import { SPECIES, SEASONS, fishSeason, conditionTips, MOUNTAIN_M } from './species.js?v=ff2ce435e0';
-import * as store from './store.js?v=ff2ce435e0';
-import * as ui from './ui.js?v=ff2ce435e0';
-import { createMap } from './map.js?v=ff2ce435e0';
-import { createSky, weatherKind, weatherSky } from './sky.js?v=ff2ce435e0';
-import { gearAdvice, oterWeather } from './gear.js?v=ff2ce435e0';
-import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=ff2ce435e0';
-import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=ff2ce435e0';
-import { badConditionTips, windSpot } from './tips.js?v=ff2ce435e0';
+import { fetchForecast, searchPlaces, nameForPoint, describeWeather, compass, distanceKm } from './weather.js?v=85190b6441';
+import { buildModel, buildHistory, MODELS } from './model.js?v=85190b6441';
+import { loadArchive, saveArchive, mergeHistory, historyHours, coveredDays, needsBackfill } from './history.js?v=85190b6441';
+import { phaseName, daysUntilPhase, sunAltitude, moonAltitude } from './astro.js?v=85190b6441';
+import { scoreLabel } from './score.js?v=85190b6441';
+import { SPECIES, SEASONS, fishSeason, conditionTips, MOUNTAIN_M } from './species.js?v=85190b6441';
+import * as store from './store.js?v=85190b6441';
+import * as ui from './ui.js?v=85190b6441';
+import { createMap } from './map.js?v=85190b6441';
+import { createSky, weatherKind, weatherSky } from './sky.js?v=85190b6441';
+import { gearAdvice, oterWeather } from './gear.js?v=85190b6441';
+import { countTiles, formatMB, AVG_TILE_BYTES, LEVELS, MAX_TILES } from './tiles.js?v=85190b6441';
+import { loadAreas, downloadArea, deleteArea, offlineMapsSupported } from './offlinemaps.js?v=85190b6441';
+import { badConditionTips, windSpot } from './tips.js?v=85190b6441';
 
 const DEFAULT_PLACE = { name: 'Salvatnet', detail: 'Innsjø · Namsos', lat: 64.71, lon: 11.5833, example: true };
 const STALE_MS = 30 * 60_000;
@@ -94,7 +94,12 @@ async function refresh({ quiet = false } = {}) {
 
 function rebuild() {
   model = forecast
-    ? buildModel(forecast, place, Date.now(), historyHours(archive, place), { model: data.model, speciesId: data.species })
+    ? buildModel(forecast, place, Date.now(), historyHours(archive, place), {
+        model: data.model,
+        speciesId: data.species,
+        // Arealet fra NVE avgjør hvor treg vanntemperaturen er.
+        lakeAreaKm2: data.lakeInfo?.[lakeKey(place)]?.nve?.areaKm2 ?? null,
+      })
     : null;
   archiveDays = null;
   render();
@@ -514,7 +519,8 @@ async function loadLakeInfo() {
     ]);
     data.lakeInfo[key] = { nve, wiki, fish, fetchedAt: Date.now() };
     persist();
-    if (tab === 'idag') render();
+    // Arealet endrer vanntemperaturanslaget, så alt regnes på nytt.
+    rebuild();
   } finally {
     lakeInfoLoading = null;
   }
@@ -522,7 +528,7 @@ async function loadLakeInfo() {
 
 let lakeInfoUnavailable = false;
 let lakePromise = null;
-const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=ff2ce435e0').catch(() => null));
+const lakeModule = () => (lakePromise ??= import('./lakeinfo.js?v=85190b6441').catch(() => null));
 
 /**
  * Høyden over havet for vannet: fra NVE når vi har den, ellers høyden

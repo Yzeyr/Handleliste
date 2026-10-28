@@ -8,10 +8,10 @@
  * du har valgt, ligger direkte på timen (score, reasons, warnings) og styrer
  * kurver og beste tider; den andre ligger under `other`.
  */
-import { skyDay, solunarPeriods, sunAltitude } from './astro.js?v=ff2ce435e0';
-import { bestWindows, dayScore, hourScore } from './score.js?v=ff2ce435e0';
-import { researchScore } from './research.js?v=ff2ce435e0';
-import { dailyFromHours, estimateWaterTemp } from './weather.js?v=ff2ce435e0';
+import { skyDay, solunarPeriods, sunAltitude } from './astro.js?v=85190b6441';
+import { bestWindows, dayScore, hourScore } from './score.js?v=85190b6441';
+import { researchScore } from './research.js?v=85190b6441';
+import { dailyFromHours, estimateWaterTemp } from './weather.js?v=85190b6441';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -32,7 +32,9 @@ function scoreDay(d, hours, place, opts) {
   const scored = hours.map((h) => {
     const sunAlt = sunAltitude(h.t + HOUR / 2, place.lat, place.lon);
     const erfaring = hourScore(h, sky, periods, sunAlt);
-    const forskning = researchScore(h, sky, sunAlt, ctx);
+    // Solhøyden fire ganger i timen, så lyset kan regnes som et snitt.
+    const sunAlts = [7.5, 22.5, 37.5, 52.5].map((min) => sunAltitude(h.t + min * 60_000, place.lat, place.lon));
+    const forskning = researchScore(h, sky, sunAlt, { ...ctx, sunAlts });
     const [main, other] = opts.model === 'forskning' ? [forskning, erfaring] : [erfaring, forskning];
     return { ...h, sunAlt, ...main, other, scores: { erfaring: erfaring.score, forskning: forskning.score } };
   });
@@ -49,13 +51,13 @@ function mergeHours(a, b) {
 /**
  * @param history timene fra værarkivet (kan være tomt). Brukes til
  *                vanntemperaturen, som trenger uker bakover.
- * @param opts { model: 'erfaring'|'forskning', speciesId }
+ * @param opts { model: 'erfaring'|'forskning', speciesId, lakeAreaKm2 }
  */
 export function buildModel(forecast, place, now = Date.now(), history = [], opts = {}) {
   // Vanntemperaturen først: forskningsmodellen trenger den for hver time.
   const pastHours = mergeHours(history, forecast.hours.filter((h) => h.t < now));
   const pastDays = pastHours.length ? dailyFromHours(pastHours, forecast.timezone) : forecast.days;
-  const waterTemp = estimateWaterTemp(pastDays, now);
+  const waterTemp = estimateWaterTemp(pastDays, now, { areaKm2: opts.lakeAreaKm2 ?? null });
   const o = { model: opts.model ?? 'erfaring', speciesId: opts.speciesId ?? 'orret', waterTemp };
 
   const days = forecast.days

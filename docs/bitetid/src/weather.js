@@ -82,14 +82,6 @@ export function parseForecast(json) {
 }
 
 /**
- * Grovt anslag på overflatetemperaturen i vannet.
- *
- * En innsjø henger etter lufta: den er kaldere enn lufta om våren og varmere
- * om høsten. Anslaget er et vektet snitt av døgntemperaturen de siste tre
- * ukene (nyeste teller mest), pluss et sesongtillegg. Det er godt nok til å
- * skille «kaldt vår-vann» fra «varmt sommervann», ikke til mer.
- */
-/**
  * Døgn med høyeste og laveste temperatur, laget av timene. Brukes for
  * arkivet, der Open-Meteo ikke har levert døgnverdier.
  */
@@ -112,22 +104,45 @@ export function dailyFromHours(hours, timezone) {
   return [...days.values()].sort((a, b) => a.start - b.start);
 }
 
-export function estimateWaterTemp(days, now) {
-  const past = days.filter((d) => d.start <= now && d.tmax != null && d.tmin != null);
+/**
+ * Hvor mange døgn vannet bruker på å følge lufta, etter hvor stort det er.
+ * Et lite tjern følger lufta på en uke; et stort, dypt vann som Salvatnet
+ * henger flere uker etter, fordi det har mye mer vann å varme og kjøle.
+ */
+export function waterLagDays(areaKm2) {
+  if (areaKm2 == null) return 10;
+  if (areaKm2 < 1) return 7;
+  if (areaKm2 < 20) return 14;
+  return 25;
+}
+
+/**
+ * Grovt anslag på overflatetemperaturen i vannet.
+ *
+ * Vannet følger døgntemperaturen i lufta med en forsinkelse: hver dag nærmer
+ * det seg lufta med 1/forsinkelse av avstanden. Det gir av seg selv kaldt
+ * vann om våren og varmt vann om høsten, uten faste sesongtillegg (de
+ * gjorde anslaget for høyt i en mild høst). Under 0,5 °C regnes som is.
+ * Treffer typisk innenfor ±2–3 °C; godt nok til å skille kaldt fra varmt
+ * vann for fisken, ikke til mer.
+ *
+ * @param days døgn med tmax og tmin, eldste først eller i vilkårlig rekkefølge
+ * @param opts { areaKm2 } vannets areal fra NVE, om kjent
+ */
+export function estimateWaterTemp(days, now, { areaKm2 = null } = {}) {
+  const past = days
+    .filter((d) => d.start <= now && d.tmax != null && d.tmin != null)
+    .sort((a, b) => a.start - b.start);
   if (past.length === 0) return null;
-  let sum = 0;
-  let weight = 0;
-  past.forEach((d) => {
-    const ageDays = (now - d.start) / 86_400_000;
-    const w = Math.pow(0.5, ageDays / 7);
-    sum += w * ((d.tmax + d.tmin) / 2);
-    weight += w;
-  });
-  // Hvor mye vannet ligger over (+) eller under (−) lufta, måned for måned.
-  // Størst om våren (isvann) og tidlig høst (sommervarme lagret i dypet).
-  const OFFSET = [0, 0, 0, -2, -2.5, -1.5, 0, 1, 2, 1, 0.5, 0];
-  const offset = OFFSET[new Date(now).getUTCMonth()];
-  return Math.max(0.5, Math.min(25, sum / weight + offset));
+  const tau = waterLagDays(areaKm2);
+  const mean = (d) => (d.tmax + d.tmin) / 2;
+  // Start fra snittet av de første dagene, så første dag ikke styrer alt.
+  const first = past.slice(0, 5);
+  let water = first.reduce((s, d) => s + mean(d), 0) / first.length;
+  for (const d of past.slice(first.length)) {
+    water += (Math.max(0, mean(d)) - water) / tau;
+  }
+  return Math.max(0.5, Math.min(25, water));
 }
 
 /** Navnetyper i Kartverkets stedsnavnregister som er vann man kan fiske i. */

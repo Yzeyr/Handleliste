@@ -34,6 +34,21 @@ export const THERMAL = {
 /** Poeng i mørket (sola under −6°), per art. */
 const DARK = { abbor: -20, gjedde: -12, roye: 0, sik: 0, orret: 0, sjoorret: 10, laks: -5 };
 
+/**
+ * Halvlys-bonusen som en jevn kurve etter solhøyden (grader), 0–20:
+ * stiger fra −12° (det første lyset), er på topp fra −3° til +3°
+ * (rett før og etter at sola står opp eller går ned), og faller av til 0
+ * ved +18°. Tidligere var det en skarp grense ved −6°, så poengene hoppet
+ * fra én time til den neste.
+ */
+export function lightBonus(sunAlt) {
+  if (sunAlt <= -12 || sunAlt >= 18) return 0;
+  if (sunAlt < -3) return (20 * (sunAlt + 12)) / 9;
+  if (sunAlt <= 3) return 20;
+  if (sunAlt <= 12) return 20 - (14 * (sunAlt - 3)) / 9;
+  return 6 - (6 * (sunAlt - 12)) / 6;
+}
+
 /** 0–1: hvor godt arten spiser ved denne vanntemperaturen. */
 export function thermalFactor(speciesId, waterTemp) {
   const p = THERMAL[speciesId];
@@ -46,7 +61,7 @@ export function thermalFactor(speciesId, waterTemp) {
 export const RWHY = {
   Halvlys: 'Studier av ørret, abbor og gjedde viser mest aktivitet rundt soloppgang og solnedgang. Det er godt dokumentert.',
   'Halvlys (lyse netter)': 'Når det aldri blir mørkt, flater døgnrytmen ut. Røye og sik viser nesten ingen døgnrytme under midnattssola.',
-  'Nær skumring': 'Lyset er på vei ned eller opp. Aktiviteten øker jo nærmere halvlyset du kommer.',
+  'Nær halvlys': 'Det lysner eller mørkner. Aktiviteten øker gradvis jo nærmere soloppgang eller solnedgang du kommer.',
   'Mørkt — abboren hviler': 'Abbor er en dagfisk og spiser nesten ikke i mørket i klare vann.',
   'Mørkt — gjedda er lite aktiv': 'Gjedda jakter mest i dagslys og halvlys.',
   'Mørkt — laksen biter dårligere': 'Laks tas mest i lys, selv om noen fisker den om natta.',
@@ -82,12 +97,17 @@ export function researchScore(h, sky, sunAlt, ctx = {}) {
   const species = ctx.speciesId ?? 'orret';
 
   // Lys: halvlys etter solhøyde, ikke klokkeslett, så det virker også i nord.
-  if (sunAlt >= -6 && sunAlt <= 6) {
-    if (ctx.lightNights) add(10, 'Halvlys (lyse netter)');
-    else add(20, 'Halvlys');
-  } else if (sunAlt > 6 && sunAlt <= 12) {
-    add(8, 'Nær skumring');
-  } else if (sunAlt < -6) {
+  // En jevn kurve i stedet for en skarp grense: lyset øker gradvis, og
+  // aktiviteten med det.
+  // Snitt over hele timen når modellen har solhøyden flere ganger i timen:
+  // om morgenen stiger sola mange grader på en time.
+  const alts = ctx.sunAlts?.length ? ctx.sunAlts : [sunAlt];
+  const light = alts.reduce((sum, a) => sum + lightBonus(a), 0) / alts.length;
+  if (light > 0) {
+    const points = ctx.lightNights ? light / 2 : light;
+    const text = ctx.lightNights ? 'Halvlys (lyse netter)' : light >= 15 ? 'Halvlys' : 'Nær halvlys';
+    add(Math.round(points * 10) / 10, text);
+  } else if (sunAlt <= -12) {
     const dark = DARK[species] ?? 0;
     const text = { abbor: 'Mørkt — abboren hviler', gjedde: 'Mørkt — gjedda er lite aktiv', laks: 'Mørkt — laksen biter dårligere', sjoorret: 'Mørkt — sjøørretens tid' }[species];
     if (text) add(dark, text);
@@ -135,14 +155,17 @@ export function researchScore(h, sky, sunAlt, ctx = {}) {
     const p = THERMAL[species];
     // Teksten følger fortegnet: et pluss skal aldri hete «for kaldt».
     const colder = ctx.waterTemp < p.opt;
+    // Alltid anslaget først, så ingen leser artens beste temperatur som
+    // vanntemperaturen («nær 13 °C» når vannet var 10).
+    const now = Math.round(ctx.waterTemp);
     const text =
       f > 0.85
-        ? `Vannet nær ${p.opt} °C, det arten liker best`
+        ? `Vannet ca. ${now} °C, godt for arten (best rundt ${p.opt})`
         : points > 0
-          ? `Vanntemperaturen er grei for arten`
+          ? `Vannet ca. ${now} °C, greit for arten`
           : colder
-            ? 'Kaldere vann enn arten liker'
-            : 'Varmere vann enn arten liker';
+            ? `Vannet ca. ${now} °C, kaldere enn arten liker`
+            : `Vannet ca. ${now} °C, varmere enn arten liker`;
     score += points;
     reasons.push({
       points,
