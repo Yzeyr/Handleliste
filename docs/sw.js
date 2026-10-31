@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((names) => Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name))))
+      .then((names) => Promise.all(names.filter((name) => name.startsWith('handleliste-') && name !== CACHE).map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });

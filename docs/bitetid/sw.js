@@ -5,7 +5,7 @@
  * Nett først, telefonen som reserve: en ny utgave vises med en gang den er
  * lagt ut, og uten nett får du den forrige.
  */
-const CACHE = 'bitetid-791b7704d5';
+const CACHE = 'bitetid-da2a203fbd';
 const SHELL = [
   './',
   './index.html',
@@ -42,7 +42,7 @@ self.addEventListener('activate', (event) => {
       .keys()
       // Gamle utgaver av appen ryddes bort, men aldri kartene: de skal
       // overleve hver oppdatering.
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && !k.startsWith('bitetid-kart')).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('bitetid-') && k !== CACHE && !k.startsWith('bitetid-kart')).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
